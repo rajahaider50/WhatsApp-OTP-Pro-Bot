@@ -1,0 +1,8 @@
+node_modules
+auth
+auth_backups
+otps.json
+config.json
+.lock
+.public-url
+install.log

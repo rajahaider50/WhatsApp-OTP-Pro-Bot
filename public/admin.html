@@ -1,0 +1,290 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>OTP Bot - Admin</title>
+<style>
+  :root{--bg:#070b14;--card:rgba(255,255,255,.05);--bd:rgba(255,255,255,.1);--tx:#e8eefc;--mut:#8b97b3;--ac:#25d366;--err:#ff6b6b;--warn:#ffc857}
+  *{box-sizing:border-box}
+  body{margin:0;font-family:system-ui,-apple-system,"Segoe UI",sans-serif;color:var(--tx);padding:14px;
+    background:radial-gradient(900px 500px at 90% -10%,rgba(37,211,102,.15),transparent),var(--bg);min-height:100vh}
+  .wrap{max-width:780px;margin:0 auto}
+  .card{background:var(--card);border:1px solid var(--bd);border-radius:16px;padding:16px;margin-bottom:12px}
+  h1{font-size:20px;margin:0} h2{font-size:15px;margin:0 0 10px;color:var(--ac)}
+  .row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+  .grow{flex:1;min-width:140px}
+  input,textarea,button{font:inherit;color:var(--tx);border-radius:10px;border:1px solid var(--bd);background:rgba(0,0,0,.35);padding:11px;width:100%}
+  textarea{min-height:80px;resize:vertical}
+  button{width:auto;cursor:pointer;background:rgba(255,255,255,.07);font-weight:600}
+  button.p{background:linear-gradient(135deg,var(--ac),#7cf0a8);color:#04210f;border:0}
+  button.d{border-color:rgba(255,107,107,.5);color:var(--err)}
+  button:disabled{opacity:.5}
+  label{font-size:12px;color:var(--mut);display:block;margin:10px 0 4px}
+  .pill{font-size:12px;padding:5px 10px;border-radius:99px;border:1px solid var(--bd);color:var(--mut);white-space:nowrap}
+  .pill.ok{color:var(--ac);border-color:rgba(37,211,102,.4)} .pill.bad{color:var(--err);border-color:rgba(255,107,107,.4)} .pill.warn{color:var(--warn);border-color:rgba(255,200,87,.4)}
+  .grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+  .stat{text-align:center;padding:10px 4px;border-radius:12px;background:rgba(0,0,0,.25);border:1px solid var(--bd)}
+  .stat b{display:block;font-size:20px} .stat span{font-size:11px;color:var(--mut)}
+  .hide{display:none} .mut{color:var(--mut);font-size:13px;line-height:1.45} .ok{color:var(--ac)} .err{color:var(--err)}
+  code{background:rgba(0,0,0,.4);padding:2px 6px;border-radius:6px;font-size:12px}
+  #qr{text-align:center} #qr img{width:230px;max-width:100%;background:#fff;border-radius:12px;padding:6px}
+  #pair{font-size:30px;font-weight:800;letter-spacing:5px;text-align:center;color:var(--warn)}
+  table{width:100%;border-collapse:collapse;font-size:12px}
+  td,th{padding:6px;border-bottom:1px solid var(--bd);text-align:left;vertical-align:top}
+  .errrow{border:1px solid rgba(255,107,107,.35);background:rgba(255,107,107,.07);border-radius:10px;padding:8px 10px;margin-bottom:8px;font-size:12px}
+  .errrow .src{color:var(--warn);font-family:monospace;word-break:break-all}
+  .errrow .hint{color:var(--ac);margin-top:4px}
+  pre{margin:0;font-size:11px;white-space:pre-wrap;max-height:260px;overflow:auto;background:rgba(0,0,0,.4);padding:8px;border-radius:10px}
+  .l-error{color:var(--err)} .l-warn{color:var(--warn)}
+  .sw{display:flex;align-items:center;gap:8px;margin-top:10px} .sw input{width:auto}
+  .url{word-break:break-all;font-family:monospace;font-size:13px}
+  #toast{position:fixed;bottom:16px;left:50%;transform:translateX(-50%);background:#111a2e;border:1px solid var(--bd);padding:10px 16px;border-radius:12px;font-size:13px;display:none;max-width:90%;z-index:9}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<!-- Login -->
+<div id="loginView">
+  <div class="card">
+    <h1>Admin Panel</h1>
+    <p class="mut">
+      1) Press <b>Request code</b>.<br>
+      2) A 6-digit admin code is printed in the Termux terminal. Run <code>bash manage.sh code</code> to see it.<br>
+      3) Type that code below and log in.<br>
+      <i>Code terminal (Termux) mein aayega, yahan likh kar login karein.</i>
+    </p>
+    <button id="reqCode" class="p">Request code</button>
+    <label>Admin verification code</label>
+    <input id="code" type="tel" inputmode="numeric" maxlength="6" placeholder="6-digit code">
+    <div style="margin-top:10px"><button id="doLogin" class="p">Log in</button></div>
+    <p id="loginMsg" class="mut"></p>
+  </div>
+</div>
+
+<!-- Dashboard -->
+<div id="dash" class="hide">
+  <div class="card">
+    <div class="row">
+      <h1 class="grow">OTP Bot Server</h1>
+      <span id="stPill" class="pill">...</span>
+      <button id="logoutBtn">Log out</button>
+    </div>
+    <p class="mut" id="meta"></p>
+    <p class="err" id="lastErr"></p>
+    <div class="grid">
+      <div class="stat"><b id="sReq">0</b><span>Requests</span></div>
+      <div class="stat"><b id="sDel" class="ok">0</b><span>Delivered</span></div>
+      <div class="stat"><b id="sUnd">0</b><span>Unconfirmed</span></div>
+      <div class="stat"><b id="sFail" class="err">0</b><span>Failed</span></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Link the bot (pairing code / QR)</h2>
+    <div id="linkedBox" class="hide ok"></div>
+    <div id="qr"></div>
+    <div id="pair"></div>
+    <p class="mut" id="linkHelp"></p>
+    <div class="row">
+      <button id="newPair" class="p">New pairing code + QR</button>
+      <button id="newQr">QR only</button>
+      <button id="unlinkBtn" class="d">Unlink</button>
+      <button id="restartBtn">Reconnect</button>
+    </div>
+    <p class="mut">Keep Termux visible (split-screen) while linking, otherwise Android may drop the connection (401 / 428).</p>
+  </div>
+
+  <div class="card">
+    <h2>Change the main (bot) number</h2>
+    <label>New number (03XXXXXXXXX or 923XXXXXXXXX)</label>
+    <input id="newNum" type="tel" placeholder="03XXXXXXXXX">
+    <div class="row" style="margin-top:10px">
+      <button id="setNumPair" class="p">Change + pairing code</button>
+      <button id="setNumQr">Change + QR</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Links</h2>
+    <div class="mut">Local</div><div class="url" id="uLocal"></div>
+    <div class="mut" style="margin-top:8px">Public link <span id="pubPill" class="pill">unknown</span></div>
+    <div class="url" id="uPublic"></div>
+    <div class="mut" style="margin-top:8px">Admin</div><div class="url" id="uAdmin"></div>
+    <div class="row" style="margin-top:10px">
+      <button id="copyUrl">Copy public link</button>
+      <button id="checkPub">Check now</button>
+      <button id="restartTun">Restart tunnel</button>
+    </div>
+    <p class="mut" id="pubHelp"></p>
+  </div>
+
+  <div class="card">
+    <h2>Settings</h2>
+    <div class="sw"><input type="checkbox" id="fSignup"><label style="margin:0">Signup page enabled</label></div>
+    <div class="sw"><input type="checkbox" id="fRestrict"><label style="margin:0">Only send OTP to the numbers below (test mode)</label></div>
+    <div class="sw"><input type="checkbox" id="fWatch"><label style="margin:0">Auto-restart tunnel when the public link is dead</label></div>
+    <label>Allowed numbers (one per line)</label>
+    <textarea id="fAllowed" placeholder="03XXXXXXXXX"></textarea>
+    <div class="row">
+      <div class="grow"><label>OTP lifetime (seconds)</label><input id="fTtl" type="number"></div>
+      <div class="grow"><label>Resend cooldown (seconds)</label><input id="fCd" type="number"></div>
+    </div>
+    <div class="row">
+      <div class="grow"><label>Max OTPs per hour</label><input id="fMax" type="number"></div>
+      <div class="grow"><label>Max per IP per hour</label><input id="fIp" type="number"></div>
+    </div>
+    <label>WhatsApp message (use {OTP} and {MINUTES})</label>
+    <textarea id="fMsg"></textarea>
+    <div style="margin-top:10px"><button id="saveSet" class="p">Save settings</button></div>
+  </div>
+
+  <div class="card">
+    <h2>Recent messages</h2>
+    <div style="overflow-x:auto"><table><thead><tr><th>ID</th><th>To</th><th>Status</th><th>Age</th></tr></thead><tbody id="recent"></tbody></table></div>
+  </div>
+
+  <div class="card">
+    <div class="row"><h2 class="grow">Error console <span id="errCount" class="pill">0</span></h2><button id="clearErr">Clear</button></div>
+    <div id="errs"><p class="mut">No errors.</p></div>
+  </div>
+
+  <div class="card">
+    <h2>Live log</h2>
+    <pre id="logs"></pre>
+  </div>
+</div>
+</div>
+<div id="toast"></div>
+
+<script>
+const $ = id => document.getElementById(id)
+let token = ''
+try { token = sessionStorage.getItem('otpbot_tok') || '' } catch(e){}
+let settingsLoaded = false, timer = null, lastState = null
+
+function toast(t){ const el=$('toast'); el.textContent=t; el.style.display='block'; clearTimeout(toast.t); toast.t=setTimeout(()=>el.style.display='none',3500) }
+function report(message, source, line){
+  try{ fetch('/api/client-error',{method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({page:'admin',message:String(message||'').slice(0,300),source:String(source||'').slice(0,120),line:line||0})}) }catch(e){}
+}
+window.addEventListener('error', e => report(e.message, e.filename, e.lineno))
+window.addEventListener('unhandledrejection', e => report((e.reason&&e.reason.message)||e.reason, 'promise', 0))
+
+async function api(path, method, body){
+  let r
+  try{
+    r = await fetch(path,{method:method||'GET',headers:Object.assign({'Content-Type':'application/json'}, token?{Authorization:'Bearer '+token}:{}),body:body?JSON.stringify(body):undefined})
+  }catch(e){ report('fetch failed '+path+': '+e.message, path, 0); throw e }
+  if (r.status===401 && token){ token=''; try{sessionStorage.removeItem('otpbot_tok')}catch(e){}; showLogin(); throw new Error('session expired') }
+  if (r.status>=500) report('HTTP '+r.status+' '+path, path, 0)
+  return r.json()
+}
+function showLogin(){ clearInterval(timer); $('loginView').classList.remove('hide'); $('dash').classList.add('hide') }
+function showDash(){ $('loginView').classList.add('hide'); $('dash').classList.remove('hide'); settingsLoaded=false; refresh(); clearInterval(timer); timer=setInterval(refresh,2500) }
+
+$('reqCode').onclick = async () => {
+  const r = await api('/api/admin/request-code','POST')
+  $('loginMsg').textContent = r.ok ? 'Code printed in the terminal. Run: bash manage.sh code' : r.error
+}
+$('doLogin').onclick = async () => {
+  const r = await api('/api/admin/login','POST',{code:$('code').value})
+  if (r.ok){ token=r.token; try{sessionStorage.setItem('otpbot_tok',token)}catch(e){}; showDash() } else $('loginMsg').textContent = r.error
+}
+$('logoutBtn').onclick = async () => { try{ await api('/api/admin/logout-session','POST') }catch(e){}; token=''; try{sessionStorage.removeItem('otpbot_tok')}catch(e){}; showLogin() }
+
+function fmtDur(s){ const h=Math.floor(s/3600), m=Math.floor(s%3600/60); return h ? h+'h '+m+'m' : m+'m '+(s%60)+'s' }
+const NAMES = {starting:['Starting','warn'],qr:['Waiting for link','warn'],open:['Online','ok'],closed:['Reconnecting','warn'],loggedout:['Logged out','bad']}
+
+function render(s){
+  lastState = s
+  const n = NAMES[s.status] || [s.status,'']
+  const p = $('stPill'); p.textContent = (s.status==='open' && !s.ready) ? 'Getting ready' : n[0]; p.className = 'pill ' + ((s.status==='open'&&s.ready)?'ok':n[1])
+  $('meta').textContent = 'v'+s.version+' | bot +'+s.botNumber+' | server up '+fmtDur(s.uptime)+' | connection up '+fmtDur(s.connUptime)+' | reconnects (24h): '+s.reconnects24h
+  $('lastErr').textContent = s.lastError || ''
+  $('sReq').textContent = s.stats.requested; $('sDel').textContent = s.stats.delivered
+  $('sUnd').textContent = s.stats.undelivered; $('sFail').textContent = s.stats.failed
+
+  const lb = $('linkedBox')
+  if (s.linked && s.status==='open'){ lb.classList.remove('hide'); lb.textContent='Bot is linked and online.' } else lb.classList.add('hide')
+  $('qr').textContent=''
+  if (s.qr){ const img=document.createElement('img'); img.src=s.qr; $('qr').append(img) }
+  $('pair').textContent = s.pairCode || ''
+  $('linkHelp').textContent = s.pairCode ? 'WhatsApp > Linked devices > Link a device > Link with phone number instead, then type this code. Or scan the QR above.' : (s.qr ? 'Scan the QR: WhatsApp > Linked devices > Link a device.' : '')
+
+  const local = 'http://localhost:'+s.port
+  $('uLocal').textContent = local
+  $('uPublic').textContent = s.publicUrl || '(no public link yet - run: bash manage.sh tunnel)'
+  $('uAdmin').textContent = (s.publicUrl || local) + '/admin.html'
+  const pp = $('pubPill')
+  if (!s.publicUrl){ pp.textContent='none'; pp.className='pill' }
+  else if (s.publicOk === true){ pp.textContent='reachable'; pp.className='pill ok' }
+  else if (s.publicOk === false){ pp.textContent='NOT reachable'; pp.className='pill bad' }
+  else { pp.textContent='checking'; pp.className='pill' }
+  $('pubHelp').textContent = s.fixedUrl ? 'Fixed link in use (it does not change).' :
+    'Quick-tunnel links change after every tunnel restart and can be blocked by some ISPs/countries. For a permanent link see GUIDE.md (fixed link / VPS + domain).'
+
+  if (!settingsLoaded){
+    const st=s.settings
+    $('fSignup').checked=st.signupEnabled; $('fRestrict').checked=st.restrictToAllowed; $('fWatch').checked=st.tunnelWatchdog
+    $('fAllowed').value=(st.allowedNumbers||[]).join('\n'); $('fTtl').value=st.otpTtlSec; $('fCd').value=st.cooldownSec
+    $('fMax').value=st.maxPerHour; $('fIp').value=st.ipLimitPerHour; $('fMsg').value=st.message
+    settingsLoaded=true
+  }
+  const tb=$('recent'); tb.textContent=''
+  for (const r of s.recent){ const tr=document.createElement('tr'); for (const v of [r.id,r.to,r.status,r.ageSec+'s']){ const td=document.createElement('td'); td.textContent=v; tr.append(td) } tb.append(tr) }
+}
+function renderConsole(c){
+  $('errCount').textContent = c.errors.length; $('errCount').className='pill '+(c.errors.length?'bad':'ok')
+  const box=$('errs'); box.textContent=''
+  if (!c.errors.length){ const p=document.createElement('p'); p.className='mut'; p.textContent='No errors.'; box.append(p) }
+  for (const e of c.errors){
+    const d=document.createElement('div'); d.className='errrow'
+    const a=document.createElement('div'); a.textContent=e.t+'  ['+e.where+']'+(e.count>1?'  x'+e.count:'')
+    const s=document.createElement('div'); s.className='src'; s.textContent='File: '+e.src
+    const m=document.createElement('div'); m.textContent=e.msg
+    d.append(a,s,m)
+    if (e.hint){ const h=document.createElement('div'); h.className='hint'; h.textContent='Fix: '+e.hint; d.append(h) }
+    box.append(d)
+  }
+  const pre=$('logs'); const atEnd = pre.scrollTop+pre.clientHeight >= pre.scrollHeight-30
+  pre.textContent=''
+  for (const l of c.logs){ const sp=document.createElement('div'); sp.className='l-'+l.lvl; sp.textContent=l.t+' '+l.msg; pre.append(sp) }
+  if (atEnd) pre.scrollTop = pre.scrollHeight
+}
+async function refresh(){
+  try{ const [s,c] = await Promise.all([api('/api/admin/state'), api('/api/admin/console')]); if (s.ok) render(s); if (c.ok) renderConsole(c) }catch(e){}
+}
+
+async function withConfirm(path, body){
+  let r = await api(path,'POST',body)
+  if (r.needConfirm && confirm(r.error+'\nContinue?')) r = await api(path,'POST',Object.assign({},body,{confirm:true}))
+  if (r.ok) toast('Done'); else if (!r.needConfirm) toast('Error: '+r.error)
+  settingsLoaded=true; refresh()
+}
+$('newPair').onclick = () => withConfirm('/api/admin/new-code',{mode:'pair'})
+$('newQr').onclick = () => withConfirm('/api/admin/new-code',{mode:'qr'})
+$('unlinkBtn').onclick = () => withConfirm('/api/admin/unlink',{})
+$('restartBtn').onclick = async () => { const r=await api('/api/admin/restart','POST'); toast(r.ok?'Reconnecting...':'Error: '+r.error) }
+$('setNumPair').onclick = () => withConfirm('/api/admin/set-number',{number:$('newNum').value,mode:'pair'})
+$('setNumQr').onclick = () => withConfirm('/api/admin/set-number',{number:$('newNum').value,mode:'qr'})
+$('saveSet').onclick = async () => {
+  const r = await api('/api/admin/settings','POST',{
+    signupEnabled:$('fSignup').checked, restrictToAllowed:$('fRestrict').checked, tunnelWatchdog:$('fWatch').checked, allowedNumbers:$('fAllowed').value,
+    otpTtlSec:$('fTtl').value, cooldownSec:$('fCd').value, maxPerHour:$('fMax').value, ipLimitPerHour:$('fIp').value, message:$('fMsg').value })
+  toast(r.ok?'Saved':'Error: '+r.error); if (r.ok){ settingsLoaded=false; refresh() }
+}
+$('clearErr').onclick = async () => { await api('/api/admin/console/clear','POST'); refresh() }
+$('copyUrl').onclick = async () => {
+  const u = lastState && lastState.publicUrl; if (!u){ toast('No public link yet'); return }
+  try{ await navigator.clipboard.writeText(u); toast('Copied') }catch(e){ toast(u) }
+}
+$('checkPub').onclick = async () => { toast('Checking...'); const r = await api('/api/admin/check-public','POST'); toast(r.publicOk===true?'Public link is reachable':(r.publicOk===false?'Public link is NOT reachable':'No public link')); refresh() }
+$('restartTun').onclick = async () => { if (!confirm('Restart the tunnel? A quick-tunnel link will change.')) return; const r = await api('/api/admin/restart-tunnel','POST'); toast(r.ok?'Tunnel restarting. Reload in ~20s to see the new link.':'Error: '+r.error) }
+
+if (token) showDash()
+</script>
+</body>
+</html>
