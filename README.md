@@ -1,17 +1,40 @@
-# WhatsApp-OTP-Bot (OTP Bot Server)
+# WhatsApp OTP Pro Bot Gateway (v2.0.0)
 
-WhatsApp OTP gateway: signup page + 6-digit OTP + admin panel + error console.
+A powerful, multi-account WhatsApp OTP gateway and management server with an advanced Admin Panel, API key system for multiple web/app integrations, customizable OTP messages, rate limiting, and connection history.
 
-    bash install.sh                       # Termux / Ubuntu: install, start, public link
-    bash install.sh --domain otp.me.com   # Ubuntu VPS: install + HTTPS (Caddy)
+## 🚀 Features
 
-Pages:  `/` signup and OTP verify  |  `/admin.html` admin panel (login code is printed in the terminal)
-Helper: `bash manage.sh status | logs | code | restart | url | tunnel | fixed-link | update`
+- **Multi-WhatsApp Accounts:** Connect and run multiple WhatsApp numbers simultaneously with automatic load balancing.
+- **API Key System:** Generate dedicated API keys for different apps/websites with customizable daily quotas.
+- **Professional Admin Panel:** Real-time Dashboard, WhatsApp Bot Management, API Key generation, OTP settings, and Live Logs.
+- **Copy-to-Clipboard WhatsApp OTP:** Clean and professional OTP message formatting with copy prompt.
+- **Easy Integration:** Ready-made code snippets for JavaScript / Node.js, Python, and PHP.
+- **Flexible Deployment:** Works on hosting panels (like botkeep.cloud), VPS servers, or Termux.
 
-Hosting panel (botkeep.cloud and similar) + GitHub: start command `npm start`; see GUIDE.md section 0.
-Environment variables: PORT/SERVER_PORT, PUBLIC_URL, BOT_NUMBER, ADMIN_PASSWORD, TRUST_PROXY, DATA_DIR, CODE_FILES.
+## 📁 Project Structure
 
-Read GUIDE.md for the full guide.
+```
+├── server.js          # Core Express & Baileys Multi-Bot server
+├── package.json       # Project dependencies & scripts
+├── manage.sh          # Management CLI helper
+├── install.sh         # Termux / VPS one-click installer
+├── GUIDE.md           # Complete documentation & deployment guide
+├── .gitignore         # Prevents secrets & session leaks
+└── public/
+    ├── index.html     # User verification page
+    └── admin.html     # Comprehensive Admin Dashboard
+```
 
-Note: this uses an unofficial WhatsApp library (Baileys). WhatsApp can restrict the bot number.
-For real production OTP traffic use the official WhatsApp Cloud API.
+## 🛠 Quick Start
+
+1. Install dependencies:
+   ```bash
+   npm install
+   ```
+2. Start the server:
+   ```bash
+   npm start
+   ```
+3. Open `http://localhost:3000/admin.html` to configure and link your WhatsApp bots!
+
+See [GUIDE.md](GUIDE.md) for full instructions on botkeep.cloud, Termux, VPS deployment, and API documentation.

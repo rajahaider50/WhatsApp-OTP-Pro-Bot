@@ -13,7 +13,7 @@ APP_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$APP_DIR" || { echo "cannot enter $APP_DIR"; exit 1; }
 
 APP_NAME="OTP Bot Server"
-PM2_APP="otp-bot-server"
+PM2_APP="otp-bot-pro"
 PM2_TUNNEL="otp-bot-tunnel"
 LOG="$APP_DIR/install.log"
 STEPTMP="$APP_DIR/.step.tmp"

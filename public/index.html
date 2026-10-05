@@ -5,69 +5,82 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>WhatsApp Verification</title>
 <style>
-  :root{--bg:#070b14;--card:rgba(255,255,255,.05);--bd:rgba(255,255,255,.1);--tx:#e8eefc;--mut:#8b97b3;--ac:#25d366;--err:#ff6b6b}
-  *{box-sizing:border-box}
-  body{margin:0;min-height:100vh;font-family:system-ui,-apple-system,"Segoe UI",sans-serif;color:var(--tx);
-    background:radial-gradient(900px 500px at 80% -10%,rgba(37,211,102,.18),transparent),radial-gradient(700px 500px at 0% 110%,rgba(18,140,126,.22),transparent),var(--bg);
+  :root{--bg:#070b14;--card:rgba(255,255,255,.06);--bd:rgba(255,255,255,.1);--tx:#e8eefc;--mut:#8b97b3;--ac:#25d366;--err:#ff6b6b}
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{min-height:100vh;font-family:system-ui,-apple-system,'Segoe UI',sans-serif;color:var(--tx);
+    background:radial-gradient(900px 500px at 80% -10%,rgba(37,211,102,.18),transparent),
+               radial-gradient(700px 500px at 0% 110%,rgba(18,140,126,.22),transparent),var(--bg);
     display:flex;align-items:center;justify-content:center;padding:18px}
   .wrap{width:100%;max-width:420px}
-  .top{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px}
-  .logo{font-weight:800;letter-spacing:.3px;font-size:18px}
-  .logo b{color:var(--ac)}
-  .pill{font-size:12px;padding:5px 10px;border-radius:99px;border:1px solid var(--bd);background:var(--card);color:var(--mut)}
-  .pill.ok{color:var(--ac);border-color:rgba(37,211,102,.4)}
-  .pill.bad{color:var(--err);border-color:rgba(255,107,107,.4)}
-  .card{background:var(--card);border:1px solid var(--bd);border-radius:20px;padding:22px;backdrop-filter:blur(14px);box-shadow:0 20px 50px rgba(0,0,0,.4)}
-  h1{margin:0 0 4px;font-size:22px}
-  p.sub{margin:0 0 16px;color:var(--mut);font-size:14px;line-height:1.45}
-  label{font-size:13px;color:var(--mut)}
-  input,button{width:100%;padding:14px;margin-top:8px;border-radius:12px;font-size:16px;border:1px solid var(--bd)}
-  input{background:rgba(0,0,0,.35);color:#fff;text-align:center;letter-spacing:1px;outline:none}
-  input:focus{border-color:var(--ac)}
-  button{border:0;font-weight:700;cursor:pointer;color:#04210f;background:linear-gradient(135deg,var(--ac),#7cf0a8);margin-top:14px}
-  button:disabled{opacity:.5;cursor:not-allowed}
+  .top{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px}
+  .logo{font-weight:800;font-size:20px;letter-spacing:.3px}.logo b{color:var(--ac)}
+  .pill{font-size:12px;padding:5px 12px;border-radius:99px;border:1px solid var(--bd);background:var(--card);color:var(--mut);transition:.3s}
+  .pill.ok{color:var(--ac);border-color:rgba(37,211,102,.4)}.pill.bad{color:var(--err);border-color:rgba(255,107,107,.4)}
+  .card{background:var(--card);border:1px solid var(--bd);border-radius:20px;padding:24px;backdrop-filter:blur(14px);box-shadow:0 20px 50px rgba(0,0,0,.4)}
+  h1{font-size:22px;margin-bottom:6px}
+  p.sub{color:var(--mut);font-size:14px;line-height:1.5;margin-bottom:18px}
+  label{font-size:13px;color:var(--mut);display:block;margin-bottom:6px}
+  input{width:100%;padding:14px;border-radius:12px;font-size:16px;border:1px solid var(--bd);
+    background:rgba(0,0,0,.35);color:#fff;text-align:center;letter-spacing:1px;outline:none;transition:.2s}
+  input:focus{border-color:var(--ac);box-shadow:0 0 0 3px rgba(37,211,102,.15)}
+  button{width:100%;padding:14px;margin-top:14px;border-radius:12px;font-size:16px;border:0;
+    font-weight:700;cursor:pointer;color:#04210f;background:linear-gradient(135deg,var(--ac),#7cf0a8);transition:.2s}
+  button:hover{transform:translateY(-1px);box-shadow:0 6px 20px rgba(37,211,102,.3)}
+  button:disabled{opacity:.5;cursor:not-allowed;transform:none;box-shadow:none}
   button.ghost{background:transparent;color:var(--tx);border:1px solid var(--bd);margin-top:10px}
-  #msg{margin-top:14px;min-height:22px;font-size:14px;line-height:1.4}
-  .ok{color:var(--ac)} .err{color:var(--err)} .wait{color:var(--mut)}
+  button.ghost:hover{background:rgba(255,255,255,.05)}
+  #msg{margin-top:14px;min-height:22px;font-size:14px;line-height:1.4;text-align:center;border-radius:10px;padding:0}
+  #msg.ok{color:var(--ac)}.#msg.err{color:var(--err)}.#msg.wait{color:var(--mut)}
+  .ok{color:var(--ac)}.err{color:var(--err)}.wait{color:var(--mut)}
   .hide{display:none}
   .done{text-align:center;padding:10px 0}
-  .tick{width:72px;height:72px;border-radius:50%;margin:0 auto 12px;display:flex;align-items:center;justify-content:center;font-size:36px;background:rgba(37,211,102,.15);border:2px solid var(--ac);animation:pop .4s ease}
+  .tick{width:72px;height:72px;border-radius:50%;margin:0 auto 14px;display:flex;align-items:center;justify-content:center;
+    font-size:36px;background:rgba(37,211,102,.15);border:2px solid var(--ac);animation:pop .4s ease}
   @keyframes pop{from{transform:scale(.4);opacity:0}to{transform:scale(1);opacity:1}}
-  footer{text-align:center;margin-top:14px;color:var(--mut);font-size:12px}
+  footer{text-align:center;margin-top:16px;color:var(--mut);font-size:12px}
+  .timer-bar{width:100%;height:3px;background:rgba(255,255,255,.1);border-radius:99px;margin-top:12px;overflow:hidden}
+  .timer-fill{height:100%;background:var(--ac);border-radius:99px;transition:width 1s linear}
+  .otp-input{font-size:28px;letter-spacing:8px;font-weight:700}
 </style>
 </head>
 <body>
 <div class="wrap">
-  <div class="top"><div class="logo">OTP <b>Bot</b></div><div id="pill" class="pill">...</div></div>
+  <div class="top">
+    <div class="logo">OTP <b>Pro</b></div>
+    <div id="pill" class="pill">...</div>
+  </div>
   <div class="card">
+    <!-- Step 1: Enter number -->
     <div id="s1">
       <h1>Sign up</h1>
-      <p class="sub">Enter your WhatsApp number. A verification code will arrive on WhatsApp.<br>Apna WhatsApp number likhein, code WhatsApp par aayega.</p>
-      <label for="num">WhatsApp number</label>
+      <p class="sub">Enter your WhatsApp number. A 6-digit verification code will be sent to you.<br><small>اپنا WhatsApp نمبر لکھیں، کوڈ WhatsApp پر آئے گا۔</small></p>
+      <label for="num">WhatsApp Number</label>
       <input id="num" type="tel" inputmode="numeric" placeholder="03XXXXXXXXX" autocomplete="tel">
-      <button id="send">Send OTP</button>
+      <button id="send">Send Verification Code</button>
     </div>
+    <!-- Step 2: Enter OTP -->
     <div id="s2" class="hide">
-      <h1>Enter the code</h1>
+      <h1>Enter Code</h1>
       <p class="sub" id="to"></p>
-      <input id="otp" type="tel" inputmode="numeric" maxlength="6" placeholder="6-digit code" autocomplete="one-time-code">
-      <button id="verify">Verify</button>
-      <button id="resend" class="ghost" disabled>Resend code</button>
+      <label for="otp">6-Digit Code</label>
+      <input id="otp" type="tel" inputmode="numeric" maxlength="6" placeholder="------" autocomplete="one-time-code" class="otp-input">
+      <div class="timer-bar"><div class="timer-fill" id="timerFill" style="width:100%"></div></div>
+      <button id="verify">Verify Code</button>
+      <button id="resend" class="ghost" disabled>Resend Code</button>
     </div>
+    <!-- Step 3: Success -->
     <div id="s3" class="hide done">
-      <div class="tick">&#10003;</div>
-      <h1>Account created successfully</h1>
-      <p class="sub">Your number is verified.</p>
+      <div class="tick">✓</div>
+      <h1>Verified!</h1>
+      <p class="sub">Your number has been successfully verified.</p>
     </div>
     <div id="msg"></div>
   </div>
-  <footer>Powered by OTP Bot Server</footer>
+  <footer>Powered by OTP Bot Pro</footer>
 </div>
 
 <script>
 const $ = id => document.getElementById(id)
-
-// Report browser errors to the server (they appear in Admin > Error console)
 function report(message, source, line){
   try{ fetch('/api/client-error',{method:'POST',headers:{'Content-Type':'application/json'},
     body:JSON.stringify({page:'signup',message:String(message||'').slice(0,300),source:String(source||'').slice(0,120),line:line||0})}) }catch(e){}
@@ -77,60 +90,84 @@ window.addEventListener('unhandledrejection', e => report((e.reason&&e.reason.me
 
 async function api(url, body){
   try{
-    const r = await fetch(url,{method: body?'POST':'GET',headers:{'Content-Type':'application/json'},body: body?JSON.stringify(body):undefined})
-    if (r.status >= 500) report('HTTP '+r.status+' '+url, url, 0)
+    const r = await fetch(url,{method:body?'POST':'GET',headers:{'Content-Type':'application/json'},body:body?JSON.stringify(body):undefined})
+    if(r.status>=500) report('HTTP '+r.status+' '+url, url, 0)
     return await r.json()
-  }catch(e){ report('fetch failed '+url+': '+e.message, url, 0); return {ok:false,error:'Cannot reach the server. Check your internet and try again.'} }
+  }catch(e){ report('fetch '+url+': '+e.message, url, 0); return {ok:false,error:'Cannot reach server.'} }
 }
-const say = (t, cls) => { $('msg').textContent = t || ''; $('msg').className = cls || '' }
+const say = (t, cls) => { $('msg').textContent = t||''; $('msg').className = cls||'' }
 
+// Status poll
 async function poll(){
   const s = await api('/api/status')
   const p = $('pill')
-  if (!s || !s.status){ p.textContent='Offline'; p.className='pill bad'; return }
-  if (s.status==='open' && s.ready){ p.textContent='Online'; p.className='pill ok' }
-  else { p.textContent='Starting'; p.className='pill' }
+  if(!s||!s.status){p.textContent='Offline';p.className='pill bad';return}
+  if(s.status==='open'&&s.ready){p.textContent='Online';p.className='pill ok'}
+  else{p.textContent='Starting';p.className='pill'}
 }
-poll(); setInterval(poll, 5000)
+poll(); setInterval(poll,5000)
 
-let number = '', timer = null, watchId = 0
+let number='', timer=null, watchId=0, otpTtl=300
+
+// Countdown timer
 function startTimer(sec){
-  clearInterval(timer); let left = sec; const b = $('resend'); b.disabled = true
-  const tick = () => { if (left<=0){ b.disabled=false; b.textContent='Resend code'; clearInterval(timer) } else { b.textContent='Resend code ('+left+'s)'; left-- } }
-  tick(); timer = setInterval(tick, 1000)
+  clearInterval(timer)
+  let left=sec
+  const b=$('resend')
+  b.disabled=true
+  const fill=$('timerFill')
+  const tick=()=>{
+    if(left<=0){b.disabled=false;b.textContent='Resend Code';clearInterval(timer);fill.style.width='0%'}
+    else{b.textContent=`Resend Code (${left}s)`;left--;fill.style.width=((left/sec)*100)+'%'}
+  }
+  tick(); timer=setInterval(tick,1000)
 }
 
-// The server answers immediately; delivery is checked by polling
+// Poll delivery
 async function watchDelivery(){
-  const id = ++watchId
-  for (let i = 0; i < 30; i++){
-    await new Promise(r => setTimeout(r, 2000))
-    if (id !== watchId) return
-    const d = await api('/api/delivery?number=' + encodeURIComponent(number))
-    if (d.known && d.delivered){ say('Code delivered to WhatsApp.', 'ok'); return }
+  const id=++watchId
+  for(let i=0;i<30;i++){
+    await new Promise(r=>setTimeout(r,2000))
+    if(id!==watchId) return
+    const d=await api('/api/delivery?number='+encodeURIComponent(number))
+    if(d.known&&d.delivered){say('✓ Code delivered to WhatsApp.','ok');return}
   }
-  if (id === watchId) say('Code sent, but delivery is not confirmed yet. The phone may be offline. The code stays valid for a few minutes.', 'wait')
+  if(id===watchId) say('Code sent. Check your WhatsApp.','wait')
 }
 
 async function sendOtp(){
-  $('send').disabled = true; $('resend').disabled = true
-  say('Sending...', 'wait')
-  const r = await api('/api/send-otp', {number: number || $('num').value})
-  $('send').disabled = false
-  if (r.ok){
-    number = r.number; $('s1').classList.add('hide'); $('s2').classList.remove('hide')
-    $('to').textContent = 'Code sent to +' + r.number
-    say('Code sent. Waiting for delivery...', 'wait')
+  $('send').disabled=true; if($('resend')) $('resend').disabled=true
+  say('Sending...','wait')
+  const r=await api('/api/send-otp',{number:number||$('num').value})
+  $('send').disabled=false
+  if(r.ok){
+    number=r.number
+    $('s1').classList.add('hide'); $('s2').classList.remove('hide')
+    $('to').textContent='Code sent to +'+r.number+'. Check WhatsApp.'
+    say('Waiting for delivery...','wait')
     startTimer(60); watchDelivery()
-  } else { say(r.error, 'err'); if (r.wait) startTimer(r.wait); else $('resend').disabled = false }
+  } else {
+    say(r.error,'err')
+    if(r.wait) startTimer(r.wait); else if($('resend')) $('resend').disabled=false
+  }
 }
-$('send').onclick = sendOtp
-$('resend').onclick = sendOtp
-$('verify').onclick = async () => {
-  const r = await api('/api/verify-otp', {number, otp: $('otp').value})
-  if (r.ok){ watchId++; $('s1').classList.add('hide'); $('s2').classList.add('hide'); $('s3').classList.remove('hide'); say('') }
-  else say(r.error, 'err')
+
+$('send').onclick=sendOtp
+$('resend') && ($('resend').onclick=sendOtp)
+
+$('verify').onclick=async()=>{
+  const r=await api('/api/verify-otp',{number,otp:$('otp').value})
+  if(r.ok){
+    watchId++
+    $('s1').classList.add('hide');$('s2').classList.add('hide');$('s3').classList.remove('hide')
+    say('')
+  } else say(r.error,'err')
 }
+
+// Auto-submit on 6 digits
+$('otp').addEventListener('input',function(){
+  if(this.value.length===6) $('verify').click()
+})
 </script>
 </body>
 </html>
