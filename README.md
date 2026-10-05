@@ -5,11 +5,13 @@ A powerful, multi-account WhatsApp OTP gateway and management server with an adv
 ## 🚀 Features
 
 - **Multi-WhatsApp Accounts:** Connect and run multiple WhatsApp numbers simultaneously with automatic load balancing.
-- **API Key System:** Generate dedicated API keys for different apps/websites with customizable daily quotas.
-- **Professional Admin Panel:** Real-time Dashboard, WhatsApp Bot Management, API Key generation, OTP settings, and Live Logs.
+- **Per-Bot Daily Limits & Progress Bar:** Configure individual message limits per bot with visual progress bar, quota percentage, and high-usage warning alerts (>=85%).
+- **API Key System with Bot Assignment:** Generate dedicated API keys for different apps/services with customizable quotas and assign each key to a specific bot or auto load balance.
+- **Professional Enterprise Admin Panel:** Modern UI powered by Font Awesome 6 icons and SVGs, responsive Android mobile bottom navigation, and desktop sidebar.
+- **Dual Pairing Code & QR Scan Modes:** Link phone numbers via 8-digit code or scan QR code instantly with WhatsApp camera to bypass pairing rate-limits.
 - **Copy-to-Clipboard WhatsApp OTP:** Clean and professional OTP message formatting with copy prompt.
 - **Easy Integration:** Ready-made code snippets for JavaScript / Node.js, Python, and PHP.
-- **Flexible Deployment:** Works on hosting panels (like botkeep.cloud), VPS servers, or Termux.
+- **Flexible Deployment:** Works on hosting panels (like botkeep.cloud), VPS servers, Docker, or Termux.
 
 ## 📁 Project Structure
 
