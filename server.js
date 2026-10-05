@@ -338,6 +338,7 @@ function initBotState(cfg) {
     pairCode: null,
     lastError: null,
     linkMode: cfg.linkMode || (cfg.botNumber ? 'pair' : 'qr'),
+    dailyLimit: Number(cfg.dailyLimit) || 500,
     pairRequested: false,
     lastPairTime: 0,
     reconnectTimer: null,
@@ -355,7 +356,14 @@ function initBotState(cfg) {
 function saveBotsConfig() {
   const arr = []
   for (const bot of bots.values()) {
-    arr.push({ id: bot.id, label: bot.label, enabled: bot.enabled, botNumber: normalize(bot.botNumber), linkMode: bot.linkMode })
+    arr.push({ 
+      id: bot.id, 
+      label: bot.label, 
+      enabled: bot.enabled, 
+      botNumber: normalize(bot.botNumber), 
+      linkMode: bot.linkMode,
+      dailyLimit: bot.dailyLimit || 500
+    })
   }
   try { fs.writeFileSync(BOTS_FILE, JSON.stringify(arr, null, 2)) } catch {}
 }
@@ -580,25 +588,48 @@ function removeBot(botId) {
   log(`Bot ${botId} removed`)
 }
 
-function addBot(label, botNumber = '', mode = 'pair') {
+function addBot(label, botNumber = '', mode = 'pair', dailyLimit = 500) {
   const id = 'bot_' + Date.now() + '_' + Math.random().toString(36).slice(2, 6)
   const cleanNumber = normalize(botNumber)
-  const cfg = { id, label: label || 'WhatsApp Bot', enabled: true, botNumber: cleanNumber, linkMode: cleanNumber ? mode : 'qr' }
+  const cfg = { 
+    id, 
+    label: label || 'WhatsApp Bot', 
+    enabled: true, 
+    botNumber: cleanNumber, 
+    linkMode: cleanNumber ? mode : 'qr',
+    dailyLimit: Number(dailyLimit) || 500
+  }
   botsConfig.push(cfg)
   initBotState(cfg)
   saveBotsConfig()
   startBot(id).catch(e => recordError('startBot', e))
-  log(`Bot ${id} added: "${label}" (${cleanNumber ? '+' + cleanNumber : 'QR Mode'})`)
+  log(`Bot ${id} added: "${label}" (${cleanNumber ? '+' + cleanNumber : 'QR Mode'}, Limit: ${cfg.dailyLimit})`)
   return id
 }
 
 function getBestBot(preferBotId) {
-  if (preferBotId) {
+  const today = new Date().toISOString().split('T')[0]
+  if (preferBotId && preferBotId !== 'all') {
     const b = bots.get(preferBotId)
-    if (b?.ready && b.status === 'open') return b
+    if (b && b.ready && b.status === 'open') {
+      if (b.dailySent?.date !== today) { b.dailySent = { date: today, count: 0 } }
+      if (b.dailyLimit && b.dailySent.count >= b.dailyLimit) {
+        throw new Error(`Assigned bot "${b.label}" has reached its daily limit (${b.dailySent.count}/${b.dailyLimit} messages).`)
+      }
+      return b
+    } else if (b) {
+      throw new Error(`Assigned bot "${b.label}" is not connected (Status: ${b.status}). Please link or select another bot.`)
+    }
   }
-  // Load balancing across all ready bots (lowest sent count today)
-  const readyBots = [...bots.values()].filter(b => b.ready && b.status === 'open')
+
+  // Load balancing across all ready bots that have not reached their daily limit
+  const readyBots = [...bots.values()].filter(b => {
+    if (!b.ready || b.status !== 'open') return false
+    if (b.dailySent?.date !== today) { b.dailySent = { date: today, count: 0 } }
+    if (b.dailyLimit && b.dailySent.count >= b.dailyLimit) return false
+    return true
+  })
+
   if (!readyBots.length) return null
   readyBots.sort((a, b) => (a.dailySent?.count || 0) - (b.dailySent?.count || 0))
   return readyBots[0]
@@ -734,7 +765,7 @@ app.get('/api/status', (req, res) => res.json({ name: APP_NAME, ready: anyReady(
 async function handleSendOtp(req, res, isV1 = false) {
   checkDailyReset()
   const rawNumber = req.body?.number
-  const preferBotId = req.body?.botId
+  const preferBotId = req.body?.botId || (isV1 && req.apiKey?.botId && req.apiKey.botId !== 'all' ? req.apiKey.botId : null)
   if (!rawNumber) return res.status(400).json({ ok: false, error: 'Phone number is required.' })
 
   const number = normalize(rawNumber)
@@ -916,6 +947,7 @@ app.get('/api/admin/state', adminAuth, (req, res) => {
       ready: b.ready,
       botNumber: b.botNumber,
       linkMode: b.linkMode,
+      dailyLimit: b.dailyLimit || 500,
       qr: b.lastQr,
       pairCode: b.pairCode,
       lastError: b.lastError,
@@ -926,6 +958,7 @@ app.get('/api/admin/state', adminAuth, (req, res) => {
     apiKeys: apiKeys.map(k => ({
       id: k.id,
       label: k.label,
+      botId: k.botId || 'all',
       key: k.key.slice(0, 8) + '...' + k.key.slice(-4),
       dailyLimit: k.dailyLimit,
       usedToday: k.usedToday,
@@ -963,8 +996,27 @@ app.post('/api/admin/bots/add', adminAuth, (req, res) => {
   const rawNum = req.body?.botNumber || ''
   const botNumber = normalize(rawNum)
   const mode = req.body?.mode === 'qr' ? 'qr' : 'pair'
-  const id = addBot(label, botNumber, mode)
-  res.json({ ok: true, id, botNumber, mode })
+  const dailyLimit = Number(req.body?.dailyLimit) || 500
+  const id = addBot(label, botNumber, mode, dailyLimit)
+  res.json({ ok: true, id, botNumber, mode, dailyLimit })
+})
+
+app.post('/api/admin/bots/:id/settings', adminAuth, (req, res) => {
+  const bot = bots.get(req.params.id)
+  if (!bot) return res.status(404).json({ ok: false, error: 'Bot not found' })
+
+  if (req.body?.label !== undefined) bot.label = String(req.body.label).trim() || bot.label
+  if (req.body?.botNumber !== undefined) bot.botNumber = normalize(req.body.botNumber)
+  if (req.body?.dailyLimit !== undefined) bot.dailyLimit = Math.max(1, Number(req.body.dailyLimit) || 500)
+
+  const found = botsConfig.find(b => b.id === bot.id)
+  if (found) {
+    found.label = bot.label
+    found.botNumber = bot.botNumber
+    found.dailyLimit = bot.dailyLimit
+  }
+  saveBotsConfig()
+  res.json({ ok: true, bot: { id: bot.id, label: bot.label, botNumber: bot.botNumber, dailyLimit: bot.dailyLimit } })
 })
 
 app.post('/api/admin/bots/:id/remove', adminAuth, (req, res) => {
@@ -1063,11 +1115,13 @@ app.get('/api/admin/keys', adminAuth, (req, res) => res.json({ ok: true, keys: a
 app.post('/api/admin/keys/generate', adminAuth, (req, res) => {
   const label = String(req.body?.label || 'API Key').trim()
   const dailyLimit = Number(req.body?.dailyLimit) || 0
+  const botId = String(req.body?.botId || 'all').trim()
   const key = crypto.randomBytes(32).toString('hex')
   const newObj = {
     id: 'k_' + Date.now(),
     key,
     label,
+    botId: botId || 'all',
     createdAt: Date.now(),
     enabled: true,
     dailyLimit,

@@ -7,6 +7,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&family=Noto+Nastaliq+Urdu:wght@400;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" integrity="sha512-DTOQO9RWCH3ppGqcWaEA1BIZOC6xxalwEsw9c2QQeAIftl+Vegovlnee1c9QX4TctnWMn13TZye+giMm8e2LwA==" crossorigin="anonymous" referrerpolicy="no-referrer" />
 <style>
 /* ==================== THEMES & COLOR SYSTEM ==================== */
 :root {
@@ -1277,6 +1278,105 @@ table.custom-table tr:hover td {
   .toast-container { bottom: 80px; left: 16px; right: 16px; }
   .toast { min-width: auto; }
 }
+
+/* ==================== BOT QUOTA & ALERT STYLES ==================== */
+.quota-container {
+  margin: 10px 0;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid var(--bd-color);
+  border-radius: var(--radius-sm);
+  padding: 10px 12px;
+}
+.quota-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 11.5px;
+  margin-bottom: 6px;
+}
+.quota-title {
+  color: var(--tx-secondary);
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.quota-stats {
+  font-family: var(--font-mono);
+  font-weight: 700;
+  font-size: 12px;
+}
+.quota-bar-bg {
+  width: 100%;
+  height: 8px;
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: 999px;
+  overflow: hidden;
+  position: relative;
+}
+.quota-bar-fill {
+  height: 100%;
+  border-radius: 999px;
+  transition: width 0.3s ease;
+}
+.quota-normal {
+  background: linear-gradient(90deg, #10b981, #00a884);
+}
+.quota-warning {
+  background: linear-gradient(90deg, #f59e0b, #d97706);
+}
+.quota-danger {
+  background: linear-gradient(90deg, #ef4444, #dc2626);
+}
+.quota-alert-banner {
+  padding: 12px 16px;
+  border-radius: var(--radius-md);
+  margin-bottom: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: 13px;
+  animation: pulseQuota 2.5s infinite ease-in-out;
+}
+.quota-alert-banner.warning {
+  background: rgba(245, 158, 11, 0.15);
+  border: 1px solid rgba(245, 158, 11, 0.4);
+  color: #fbbf24;
+}
+.quota-alert-banner.danger {
+  background: rgba(239, 68, 68, 0.18);
+  border: 1px solid rgba(239, 68, 68, 0.45);
+  color: #fca5a5;
+}
+@keyframes pulseQuota {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.82; }
+}
+.badge-bot {
+  background: rgba(0, 168, 132, 0.15);
+  color: #25d366;
+  border: 1px solid rgba(0, 168, 132, 0.3);
+  padding: 3px 8px;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+.badge-auto {
+  background: rgba(56, 189, 248, 0.15);
+  color: #38bdf8;
+  border: 1px solid rgba(56, 189, 248, 0.3);
+  padding: 3px 8px;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
 </style>
 </head>
 <body>
@@ -1518,6 +1618,7 @@ table.custom-table tr:hover td {
               <svg class="icon icon-sm"><use href="#icon-plus"/></svg> Add New Bot
             </button>
           </div>
+          <div id="dashQuotaAlert"></div>
           <div id="dashBotsList" class="bot-cards-grid">
             <!-- Rendered by JS -->
           </div>
@@ -1559,6 +1660,7 @@ table.custom-table tr:hover td {
           </button>
         </div>
 
+        <div id="botsQuotaAlert"></div>
         <div id="botsContainer" class="bot-cards-grid">
           <!-- Bot cards dynamically populated -->
         </div>
@@ -1589,7 +1691,7 @@ table.custom-table tr:hover td {
               <label class="form-label">Recipient Phone Number (Pakistan / International)</label>
               <div class="phone-input-group">
                 <span class="phone-prefix-locked">
-                  <span class="phone-prefix-flag">🇵🇰</span> +92
+                  <span class="phone-prefix-flag"><i class="fa-solid fa-flag" style="color:var(--primary); font-size:12px;"></i></span> +92
                 </span>
                 <input type="tel" id="chatPhoneInput" class="phone-input-field" placeholder="3XXXXXXXXX" maxlength="10" autocomplete="off" oninput="sanitizePhone(this, 'chatPhonePreview')">
               </div>
@@ -1649,6 +1751,7 @@ table.custom-table tr:hover td {
               <thead>
                 <tr>
                   <th>Label</th>
+                  <th>Assigned Bot</th>
                   <th>Key Token</th>
                   <th>Daily Limit</th>
                   <th>Used Today</th>
@@ -1799,7 +1902,7 @@ table.custom-table tr:hover td {
                   <li>The country code <strong>+92</strong> is locked. Enter the 10 digits starting with <strong>3</strong> (e.g. <code>3495031007</code>). Never enter a leading 0!</li>
                   <li>Click <strong>Generate Pairing Code</strong>. You will receive an 8-character code formatted as <code>XXXX-XXXX</code>.</li>
                   <li>On your phone, open <strong>WhatsApp > Settings > Linked Devices > Link with phone number</strong> and type the code.</li>
-                  <li>The bot connects within seconds and turns green (🟢 Ready).</li>
+                  <li>The bot connects within seconds and turns active (<span style="color:var(--success); font-weight:700;"><i class="fa-solid fa-circle-check"></i> Ready</span>).</li>
                 </ol>
               </div>
               <div class="guide-col-ur">
@@ -1811,7 +1914,7 @@ table.custom-table tr:hover td {
                   <li>کنٹری کوڈ <strong>+92</strong> پہلے سے لاک ہے۔ آپ نے نمبر <strong>3</strong> سے شروع کرنا ہے (مثال: <code>3495031007</code>)۔ شروع میں 0 ہرگز نہ لکھیں!</li>
                   <li><strong>Generate Pairing Code</strong> پر کلک کریں۔ 8 ہندسوں کا کوڈ آئے گا جیسے <code>XXXX-XXXX</code>۔</li>
                   <li>اپنے موبائل میں واٹس ایپ کھولیں > سیٹنگز > <strong>Linked Devices > Link with phone number</strong> میں جا کر یہ کوڈ درج کریں۔</li>
-                  <li>بوٹ فوری طور پر ایکٹو ہو جائے گا اور سبز (🟢 Ready) نشان آ جائے گا۔</li>
+                  <li>بوٹ فوری طور پر ایکٹو ہو جائے گا اور کنیکٹڈ (<span style="color:var(--success); font-weight:700;"><i class="fa-solid fa-circle-check"></i> Ready</span>) ہو جائے گا۔</li>
                 </ol>
               </div>
             </div>
@@ -2087,6 +2190,7 @@ function switchTab(name) {
   };
   document.getElementById('pageTitle').innerHTML = titles[name] || 'Admin Portal';
   window.scrollTo({ top: 0, behavior: 'smooth' });
+  if (name === 'keys' || name === 'bots') refreshData();
 }
 
 // Authentication
@@ -2255,11 +2359,41 @@ function renderBots(bots) {
   const c = document.getElementById('botsContainer');
   const dashList = document.getElementById('dashBotsList');
 
+  // Quota alerts banner check
+  const quotaAlerts = (bots || []).filter(b => {
+    const limit = b.dailyLimit || 500;
+    const sent = b.dailySent?.count || 0;
+    return (sent / limit) >= 0.85;
+  });
+
+  const dashAlertEl = document.getElementById('dashQuotaAlert');
+  const botsAlertEl = document.getElementById('botsQuotaAlert');
+  if (quotaAlerts.length > 0) {
+    const hasDanger = quotaAlerts.some(b => (b.dailySent?.count || 0) >= (b.dailyLimit || 500));
+    const alertHtml = `
+      <div class="quota-alert-banner ${hasDanger ? 'danger' : 'warning'}">
+        <div style="display:flex; align-items:center; gap:10px;">
+          <i class="fa-solid fa-triangle-exclamation" style="font-size:18px;"></i>
+          <div>
+            <strong>${hasDanger ? 'WhatsApp Daily Limit Reached!' : 'High Daily Usage Warning:'}</strong>
+            <div style="font-size:12px; margin-top:2px;">${quotaAlerts.map(b => `${b.label}: ${b.dailySent?.count || 0} / ${b.dailyLimit || 500} messages sent (${Math.min(100, Math.round(((b.dailySent?.count || 0) / (b.dailyLimit || 500)) * 100))}%)`).join(' | ')}</div>
+          </div>
+        </div>
+        <button class="btn btn-secondary btn-sm" onclick="switchTab('bots')" style="white-space:nowrap; padding:4px 10px; font-size:11px;">Manage Limits</button>
+      </div>
+    `;
+    if (dashAlertEl) dashAlertEl.innerHTML = alertHtml;
+    if (botsAlertEl) botsAlertEl.innerHTML = alertHtml;
+  } else {
+    if (dashAlertEl) dashAlertEl.innerHTML = '';
+    if (botsAlertEl) botsAlertEl.innerHTML = '';
+  }
+
   // Populate Direct Chat Bot Dropdown
   const chatSelect = document.getElementById('chatBotSelect');
   if (chatSelect) {
     const curVal = chatSelect.value;
-    chatSelect.innerHTML = bots.map(b => `<option value="${b.id}" ${b.id === curVal ? 'selected' : ''}>${b.label} (${b.status === 'open' ? '🟢 Ready' : '🟡 ' + b.status}) ${b.botNumber ? '+'+b.botNumber : ''}</option>`).join('');
+    chatSelect.innerHTML = bots.map(b => `<option value="${b.id}" ${b.id === curVal ? 'selected' : ''}>${b.label} (${b.status === 'open' ? '[Ready]' : '[' + b.status + ']'}) ${b.botNumber ? '+'+b.botNumber : ''}</option>`).join('');
   }
 
   if (!bots.length) {
@@ -2273,7 +2407,12 @@ function renderBots(bots) {
     const isOpen = b.status === 'open';
     const isPairing = b.status === 'qr' || b.pairCode || b.qr;
     const badgeClass = isOpen ? 'badge-open' : (isPairing ? 'badge-pairing' : 'badge-idle');
-    const statusLabel = isOpen ? '🟢 Connected' : (isPairing ? '🟡 Waiting for Link' : '⚪ ' + b.status);
+    const statusLabel = isOpen ? '<i class="fa-solid fa-circle-check"></i> Connected' : (isPairing ? '<i class="fa-solid fa-clock"></i> Waiting for Link' : '<i class="fa-solid fa-circle-pause"></i> ' + b.status);
+
+    const sentToday = b.dailySent?.count || 0;
+    const dailyLimit = b.dailyLimit || 500;
+    const pct = Math.min(100, Math.round((sentToday / dailyLimit) * 100));
+    const barClass = pct >= 95 ? 'quota-danger' : (pct >= 80 ? 'quota-warning' : 'quota-normal');
 
     let linkContentHtml = '';
     if (!isOpen) {
@@ -2292,14 +2431,14 @@ function renderBots(bots) {
         const part1 = codeClean.slice(0, 4);
         const part2 = codeClean.slice(4);
         pairBody = `
-          <div class="pairing-title"><svg class="icon icon-sm"><use href="#icon-key"/></svg> WhatsApp 8-Digit Pairing Code</div>
+          <div class="pairing-title"><i class="fa-solid fa-key" style="margin-right:6px;"></i> WhatsApp 8-Digit Pairing Code</div>
           <div class="code-boxes-wrap">
             ${part1.split('').map(char => `<div class="code-box">${char}</div>`).join('')}
             <div class="code-dash">—</div>
             ${part2.split('').map(char => `<div class="code-box">${char}</div>`).join('')}
           </div>
           <button class="btn btn-secondary btn-sm" onclick="copyPairCode('${codeClean}', this)" style="margin:6px 0;">
-            <svg class="icon icon-sm"><use href="#icon-copy"/></svg> Copy Pairing Code
+            <i class="fa-solid fa-copy"></i> Copy Pairing Code
           </button>
           <div class="pairing-steps-box">
             <div class="step-item"><span class="step-num">1</span> <span>Open WhatsApp on phone & go to <strong>Settings > Linked Devices</strong></span></div>
@@ -2310,10 +2449,10 @@ function renderBots(bots) {
       } else {
         pairBody = `
           <div style="text-align:center; padding:16px;">
-            <div style="font-size:12.5px; color:var(--warn); margin-bottom:8px;">⏳ Generating 8-digit code for ${b.botNumber ? '+'+b.botNumber : 'WhatsApp'}...</div>
+            <div style="font-size:12.5px; color:var(--warn); margin-bottom:8px;"><i class="fa-solid fa-spinner fa-spin"></i> Generating 8-digit code for ${b.botNumber ? '+'+b.botNumber : 'WhatsApp'}...</div>
             <div style="font-size:11px; color:var(--tx-muted); margin-bottom:12px;">فون پر لمٹ ہونے کی صورت میں QR Code سے فوراً اسکین کریں</div>
             <button class="btn btn-secondary btn-sm" onclick="setBotLinkTab('${b.id}', 'qr')">
-              <svg class="icon icon-sm"><use href="#icon-smartphone"/></svg> Switch to QR Code Scan
+              <i class="fa-solid fa-qrcode"></i> Switch to QR Code Scan
             </button>
           </div>
         `;
@@ -2326,7 +2465,7 @@ function renderBots(bots) {
             <img src="${b.qr}" style="width:160px; height:160px; border-radius:10px; background:#fff; padding:6px; box-shadow:0 4px 14px rgba(0,0,0,0.35);">
             <div style="font-size:12px; font-weight:700; color:var(--tx-primary); margin-top:8px;">Scan with WhatsApp Camera</div>
             <div style="font-size:11px; color:var(--tx-muted); margin-top:2px;">Settings &gt; Linked Devices &gt; Link a Device</div>
-            <div style="font-size:11px; color:var(--success); margin-top:5px; font-weight:600;">✨ بغیر کسی فون لمٹ کے فوراً لنک ہوتا ہے (100% Instant)</div>
+            <div style="font-size:11px; color:var(--success); margin-top:5px; font-weight:600;"><i class="fa-solid fa-bolt"></i> بغیر کسی فون لمٹ کے فوراً لنک ہوتا ہے (100% Instant)</div>
           </div>
         `;
       } else {
@@ -2334,7 +2473,7 @@ function renderBots(bots) {
           <div style="text-align:center; padding:16px;">
             <div style="font-size:12px; color:var(--tx-muted); margin-bottom:10px;">QR code initializing...</div>
             <button class="btn btn-secondary btn-sm" onclick="requestQrMode('${b.id}')">
-              <svg class="icon icon-sm"><use href="#icon-power"/></svg> Generate QR Code
+              <i class="fa-solid fa-qrcode"></i> Generate QR Code
             </button>
           </div>
         `;
@@ -2343,10 +2482,10 @@ function renderBots(bots) {
       linkContentHtml = `
         <div class="bot-link-switcher">
           <button class="link-switch-btn ${curMode === 'pair' ? 'active' : ''}" onclick="setBotLinkTab('${b.id}', 'pair')">
-            <svg class="icon icon-sm"><use href="#icon-key"/></svg> 8-Digit Pairing Code
+            <i class="fa-solid fa-key"></i> 8-Digit Pairing Code
           </button>
           <button class="link-switch-btn ${curMode === 'qr' ? 'active' : ''}" onclick="setBotLinkTab('${b.id}', 'qr')">
-            <svg class="icon icon-sm"><use href="#icon-smartphone"/></svg> Scan QR Code (Instant)
+            <i class="fa-solid fa-qrcode"></i> Scan QR Code (Instant)
           </button>
         </div>
         <div class="pairing-code-container">
@@ -2359,10 +2498,10 @@ function renderBots(bots) {
       <div class="bot-card ${isOpen ? 'status-open' : ''}">
         <div class="bot-header">
           <div class="bot-identity">
-            <div class="bot-avatar-box"><svg class="icon icon-lg"><use href="#icon-whatsapp"/></svg></div>
+            <div class="bot-avatar-box"><i class="fa-brands fa-whatsapp" style="font-size:22px;"></i></div>
             <div class="bot-name-group">
               <h3>${b.label}</h3>
-              <span class="bot-phone-pill">${b.botNumber ? '+'+b.botNumber : (b.linkMode === 'qr' ? '📷 QR Scan Mode' : 'No number assigned')}</span>
+              <span class="bot-phone-pill">${b.botNumber ? '+'+b.botNumber : (b.linkMode === 'qr' ? '<i class="fa-solid fa-qrcode"></i> QR Scan Mode' : 'No number assigned')}</span>
             </div>
           </div>
           <span class="bot-status-badge ${badgeClass}">${statusLabel}</span>
@@ -2370,11 +2509,11 @@ function renderBots(bots) {
 
         ${b.lastError ? `
           <div style="padding:10px 12px; border-radius:var(--radius-sm); background:rgba(239, 68, 68, 0.12); border:1px solid rgba(239, 68, 68, 0.3); color:#fca5a5; font-size:11.5px; line-height:1.4;">
-            <strong>⚠️ Notice:</strong> ${b.lastError}
+            <strong><i class="fa-solid fa-triangle-exclamation"></i> Notice:</strong> ${b.lastError}
             ${(b.lastError.includes('429') || b.lastError.includes('rate-overlimit')) ? `
               <div style="margin-top:6px;">
                 <button class="btn btn-secondary btn-sm" onclick="setBotLinkTab('${b.id}', 'qr')" style="font-size:11px; padding:4px 8px;">
-                  <svg class="icon icon-sm"><use href="#icon-smartphone"/></svg> Scan QR Code Instead (Recommended)
+                  <i class="fa-solid fa-qrcode"></i> Scan QR Code Instead (Recommended)
                 </button>
               </div>
             ` : ''}
@@ -2383,27 +2522,49 @@ function renderBots(bots) {
 
         ${linkContentHtml}
 
-        <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px; font-size:11.5px; color:var(--tx-muted); margin:10px 0;">
+        <!-- Quota Progress Bar -->
+        <div class="quota-container">
+          <div class="quota-header">
+            <span class="quota-title"><i class="fa-solid fa-chart-pie"></i> Daily Message Quota</span>
+            <span class="quota-stats" style="color:${pct >= 85 ? 'var(--warn)' : 'var(--tx-primary)'};">
+              ${sentToday} / ${dailyLimit} (${pct}%)
+            </span>
+          </div>
+          <div class="quota-bar-bg">
+            <div class="quota-bar-fill ${barClass}" style="width: ${pct}%;"></div>
+          </div>
+          ${pct >= 85 ? `
+            <div style="font-size:11px; color:${pct >= 100 ? 'var(--err)' : 'var(--warn)'}; margin-top:5px; font-weight:600; display:flex; align-items:center; gap:5px;">
+              <i class="fa-solid fa-triangle-exclamation"></i>
+              ${pct >= 100 ? 'Daily limit reached! Bot paused from sending OTPs.' : 'Approaching daily limit (' + pct + '% used).'}
+            </div>
+          ` : ''}
+        </div>
+
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px; font-size:11.5px; color:var(--tx-muted); margin:8px 0 12px;">
           <div>Uptime: <strong style="color:var(--tx-primary);">${fmtUptime(b.uptime)}</strong></div>
-          <div>Sent Today: <strong style="color:var(--tx-primary);">${b.dailySent?.count || 0}</strong></div>
+          <div>Daily Limit: <strong style="color:var(--tx-primary);">${dailyLimit}</strong></div>
         </div>
 
         <div class="bot-actions-row">
           ${!isOpen ? `
-            <button class="btn btn-primary btn-sm" onclick="showPairModal('${b.id}', '${b.label}', '${b.botNumber || ''}')" title="Request new 8-digit code">
-              <svg class="icon icon-sm"><use href="#icon-key"/></svg> New Code
+            <button class="btn btn-primary btn-sm" onclick="showPairModal('${b.id}', '${(b.label || '').replace(/'/g, "\\'")}', '${b.botNumber || ''}')" title="Request new 8-digit code">
+              <i class="fa-solid fa-key"></i> New Code
             </button>
             <button class="btn btn-secondary btn-sm" onclick="requestQrMode('${b.id}')" title="Switch to QR Code mode">
-              <svg class="icon icon-sm"><use href="#icon-smartphone"/></svg> QR Mode
+              <i class="fa-solid fa-qrcode"></i> QR Mode
             </button>
           ` : `
             <button class="btn btn-primary btn-sm" onclick="openDirectChat('${b.id}')" title="Send WhatsApp Message">
-              <svg class="icon icon-sm"><use href="#icon-send"/></svg> Send Message
+              <i class="fa-solid fa-paper-plane"></i> Send
             </button>
           `}
-          <button class="btn btn-secondary btn-sm" onclick="botRestart('${b.id}')" title="Restart Bot Socket"><svg class="icon icon-sm"><use href="#icon-power"/></svg> Restart</button>
-          <button class="btn btn-secondary btn-sm" onclick="botUnlink('${b.id}')" title="Unlink WhatsApp"><svg class="icon icon-sm"><use href="#icon-unlink"/></svg> Unlink</button>
-          <button class="btn btn-danger btn-sm" onclick="botRemove('${b.id}', '${b.label}')" title="Delete Bot"><svg class="icon icon-sm"><use href="#icon-trash"/></svg></button>
+          <button class="btn btn-secondary btn-sm" onclick="showBotSettingsModal('${b.id}', '${(b.label || '').replace(/'/g, "\\'")}', '${b.botNumber || ''}', ${dailyLimit})" title="Edit Bot Limit & Settings">
+            <i class="fa-solid fa-sliders"></i> Limit
+          </button>
+          <button class="btn btn-secondary btn-sm" onclick="botRestart('${b.id}')" title="Restart Bot Socket"><i class="fa-solid fa-rotate"></i> Restart</button>
+          <button class="btn btn-secondary btn-sm" onclick="botUnlink('${b.id}')" title="Unlink WhatsApp"><i class="fa-solid fa-link-slash"></i> Unlink</button>
+          <button class="btn btn-danger btn-sm" onclick="botRemove('${b.id}', '${(b.label || '').replace(/'/g, "\\'")}')" title="Delete Bot"><i class="fa-solid fa-trash"></i></button>
         </div>
       </div>
     `;
@@ -2439,19 +2600,25 @@ function showAddBotModal() {
     </div>
 
     <div class="form-group">
+      <label class="form-label">Daily Message Quota (Limit)</label>
+      <input type="number" id="addBotDailyLimit" class="form-control" value="500" min="1" max="100000">
+      <small style="color:var(--tx-muted); font-size:11px;">Default is 500 messages per day for anti-ban protection.</small>
+    </div>
+
+    <div class="form-group">
       <label class="form-label">Link Method</label>
       <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:12px;">
         <label id="lblMethodPair" style="padding:10px 12px; border:1.5px solid var(--primary); border-radius:var(--radius-md); background:var(--bg-input); cursor:pointer; display:flex; align-items:center; gap:8px;">
           <input type="radio" name="addBotMethod" value="pair" checked onchange="onAddMethodChange(this.value)">
           <div>
-            <div style="font-size:12.5px; font-weight:700; color:var(--tx-primary);">📱 8-Digit Code</div>
+            <div style="font-size:12.5px; font-weight:700; color:var(--tx-primary);"><i class="fa-solid fa-key" style="color:var(--primary); margin-right:4px;"></i> 8-Digit Code</div>
             <div style="font-size:11px; color:var(--tx-muted);">Link with phone number</div>
           </div>
         </label>
         <label id="lblMethodQr" style="padding:10px 12px; border:1px solid var(--bd-color); border-radius:var(--radius-md); background:var(--bg-input); cursor:pointer; display:flex; align-items:center; gap:8px;">
           <input type="radio" name="addBotMethod" value="qr" onchange="onAddMethodChange(this.value)">
           <div>
-            <div style="font-size:12.5px; font-weight:700; color:var(--tx-primary);">📷 Scan QR Code</div>
+            <div style="font-size:12.5px; font-weight:700; color:var(--tx-primary);"><i class="fa-solid fa-qrcode" style="color:var(--primary); margin-right:4px;"></i> Scan QR Code</div>
             <div style="font-size:11px; color:var(--tx-muted);">Camera scan (No limits)</div>
           </div>
         </label>
@@ -2462,7 +2629,7 @@ function showAddBotModal() {
       <label class="form-label">WhatsApp Phone Number</label>
       <div class="phone-input-group">
         <span class="phone-prefix-locked">
-          <span class="phone-prefix-flag">🇵🇰</span> +92
+          <span class="phone-prefix-flag"><i class="fa-solid fa-flag" style="color:var(--primary); font-size:12px;"></i></span> +92
         </span>
         <input type="tel" id="addBotNumber" class="phone-input-field" placeholder="3XXXXXXXXX" maxlength="10" autocomplete="off" oninput="sanitizePhone(this, 'addBotPreview')">
       </div>
@@ -2474,7 +2641,7 @@ function showAddBotModal() {
     </div>
   `, [
     { text: 'Cancel', cls: 'btn-secondary', fn: 'hideModal' },
-    { text: '<svg class="icon"><use href="#icon-check"/></svg> Connect Bot', cls: 'btn-primary', fn: submitAddBot }
+    { text: '<i class="fa-solid fa-plus"></i> Connect Bot', cls: 'btn-primary', fn: submitAddBot }
   ]);
   setTimeout(() => document.getElementById('addBotLabel')?.focus(), 150);
 }
@@ -2498,6 +2665,7 @@ async function submitAddBot() {
   const label = document.getElementById('addBotLabel')?.value.trim() || 'WhatsApp Bot';
   const method = document.querySelector('input[name="addBotMethod"]:checked')?.value || 'pair';
   const numDigits = document.getElementById('addBotNumber')?.value.trim() || '';
+  const dailyLimit = Number(document.getElementById('addBotDailyLimit')?.value) || 500;
   if (method === 'pair' && (!numDigits || numDigits.length < 9)) {
     return toast('Please enter a valid 10-digit mobile number starting with 3', 'err');
   }
@@ -2505,7 +2673,7 @@ async function submitAddBot() {
   hideModal();
   toast(`Adding ${label}...`, 'info');
   try {
-    const r = await api('/api/admin/bots/add', 'POST', { label, botNumber: fullNumber, mode: method });
+    const r = await api('/api/admin/bots/add', 'POST', { label, botNumber: fullNumber, mode: method, dailyLimit });
     if (r.ok) {
       toast('Bot added! Requesting connection...', 'ok');
       if (r.id) window.botLinkModes[r.id] = method;
@@ -2515,6 +2683,61 @@ async function submitAddBot() {
       toast(r.error || 'Failed to add bot', 'err');
     }
   } catch(e) { toast('Error adding bot', 'err'); }
+}
+
+// ==================== EDIT BOT SETTINGS & LIMIT MODAL ====================
+function showBotSettingsModal(botId, currentLabel, currentNum, currentLimit) {
+  let initialDigits = (currentNum || '').replace(/\D/g, '');
+  if (initialDigits.startsWith('92')) initialDigits = initialDigits.slice(2);
+  else if (initialDigits.startsWith('0')) initialDigits = initialDigits.slice(1);
+
+  showModal(`Edit Bot Settings: ${currentLabel}`, `
+    <div class="form-group">
+      <label class="form-label">Bot Label / Friendly Name</label>
+      <input type="text" id="editBotLabel" class="form-control" value="${currentLabel}">
+    </div>
+    <div class="form-group">
+      <label class="form-label">WhatsApp Phone Number</label>
+      <div class="phone-input-group">
+        <span class="phone-prefix-locked">
+          <span class="phone-prefix-flag"><i class="fa-solid fa-flag" style="color:var(--primary); font-size:12px;"></i></span> +92
+        </span>
+        <input type="tel" id="editBotNumber" class="phone-input-field" value="${initialDigits}" placeholder="3XXXXXXXXX" maxlength="10" autocomplete="off" oninput="sanitizePhone(this, 'editBotPreview')">
+      </div>
+      <div id="editBotPreview" class="phone-preview-badge" ${initialDigits ? '' : 'style="display:none;"'}>
+        ${initialDigits ? '<i class="fa-solid fa-check"></i> International: <strong>+92 '+initialDigits+'</strong>' : ''}
+      </div>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Daily Message Quota (Limit)</label>
+      <input type="number" id="editBotDailyLimit" class="form-control" value="${currentLimit || 500}" min="1" max="100000">
+      <small style="color:var(--tx-muted); font-size:11px;">Maximum OTPs this bot will send per calendar day before auto-pausing.</small>
+    </div>
+  `, [
+    { text: 'Cancel', cls: 'btn-secondary', fn: 'hideModal' },
+    { text: '<i class="fa-solid fa-floppy-disk"></i> Save Settings', cls: 'btn-primary', fn: () => submitBotSettings(botId) }
+  ]);
+}
+
+async function submitBotSettings(botId) {
+  const label = document.getElementById('editBotLabel')?.value.trim();
+  const numDigits = document.getElementById('editBotNumber')?.value.trim() || '';
+  const dailyLimit = Number(document.getElementById('editBotDailyLimit')?.value) || 500;
+  const fullNumber = numDigits ? '92' + numDigits : '';
+
+  hideModal();
+  toast('Updating bot settings...', 'info');
+  try {
+    const r = await api(`/api/admin/bots/${botId}/settings`, 'POST', { label, botNumber: fullNumber, dailyLimit });
+    if (r.ok) {
+      toast('Bot settings updated successfully!', 'ok');
+      refreshData();
+    } else {
+      toast(r.error || 'Failed to update bot settings', 'err');
+    }
+  } catch(e) {
+    toast('Error updating bot settings', 'err');
+  }
 }
 
 // ==================== NEW PAIRING CODE MODAL ====================
@@ -2528,7 +2751,7 @@ function showPairModal(botId, botLabel, currentNum) {
       <label class="form-label">WhatsApp Phone Number to Link</label>
       <div class="phone-input-group">
         <span class="phone-prefix-locked">
-          <span class="phone-prefix-flag">🇵🇰</span> +92
+          <span class="phone-prefix-flag"><i class="fa-solid fa-flag" style="color:var(--primary); font-size:12px;"></i></span> +92
         </span>
         <input type="tel" id="pairBotNumber" class="phone-input-field" value="${initialDigits}" placeholder="3XXXXXXXXX" maxlength="10" autocomplete="off" oninput="sanitizePhone(this, 'pairBotPreview')">
       </div>
@@ -2537,13 +2760,13 @@ function showPairModal(botId, botLabel, currentNum) {
         <div class="phone-helper-en">Start number with 3 (e.g. 3495031007) — do not enter leading 0 or +92.</div>
       </div>
       <div id="pairBotPreview" class="phone-preview-badge" ${initialDigits ? '' : 'style="display:none;"'}>
-        ${initialDigits ? '<svg class="icon icon-sm"><use href="#icon-check"/></svg> Full International: <strong>+92 '+initialDigits+'</strong>' : ''}
+        ${initialDigits ? '<i class="fa-solid fa-check"></i> Full International: <strong>+92 '+initialDigits+'</strong>' : ''}
       </div>
     </div>
   `, [
     { text: 'Cancel', cls: 'btn-secondary', fn: 'hideModal' },
-    { text: 'QR Code Instead', cls: 'btn-secondary', fn: () => submitNewCode(botId, 'qr') },
-    { text: '<svg class="icon"><use href="#icon-key"/></svg> Generate 8-Digit Code', cls: 'btn-primary', fn: () => submitNewCode(botId, 'pair') }
+    { text: '<i class="fa-solid fa-qrcode"></i> QR Code Instead', cls: 'btn-secondary', fn: () => submitNewCode(botId, 'qr') },
+    { text: '<i class="fa-solid fa-key"></i> Generate 8-Digit Code', cls: 'btn-primary', fn: () => submitNewCode(botId, 'pair') }
   ]);
 }
 
@@ -2657,32 +2880,54 @@ function renderRecent(recent) {
 function renderKeys(keys) {
   const tb = document.getElementById('keysTbody');
   if (!keys || !keys.length) {
-    tb.innerHTML = `<tr><td colspan="7" style="text-align:center; color:var(--tx-muted); padding:24px;">No API keys generated yet. Click "Generate New API Key".</td></tr>`;
+    tb.innerHTML = `<tr><td colspan="8" style="text-align:center; color:var(--tx-muted); padding:24px;">No API keys generated yet. Click "Generate New API Key".</td></tr>`;
     return;
   }
-  tb.innerHTML = keys.map(k => `
-    <tr>
-      <td><strong>${k.label}</strong></td>
-      <td><code style="color:var(--accent);">${k.key}</code></td>
-      <td>${k.dailyLimit > 0 ? k.dailyLimit + ' / day' : 'Unlimited'}</td>
-      <td>${k.usedToday}</td>
-      <td><span style="color:${k.enabled ? 'var(--success)' : 'var(--err)'}; font-weight:600;">${k.enabled ? 'Active' : 'Disabled'}</span></td>
-      <td>${new Date(k.createdAt).toLocaleDateString()}</td>
-      <td>
-        <div style="display:flex; gap:6px;">
-          <button class="btn btn-secondary btn-sm" onclick="toggleKey('${k.id}')">${k.enabled ? 'Disable' : 'Enable'}</button>
-          <button class="btn btn-danger btn-sm" onclick="revokeKey('${k.id}')"><svg class="icon icon-sm"><use href="#icon-trash"/></svg></button>
-        </div>
-      </td>
-    </tr>
-  `).join('');
+  tb.innerHTML = keys.map(k => {
+    let assignedHtml = `<span class="badge-auto"><i class="fa-solid fa-shuffle"></i> All Bots</span>`;
+    if (k.botId && k.botId !== 'all') {
+      const b = (window.lastBotsData || []).find(x => x.id === k.botId);
+      assignedHtml = b 
+        ? `<span class="badge-bot"><i class="fa-brands fa-whatsapp"></i> ${b.label}</span>`
+        : `<span class="badge-bot"><i class="fa-solid fa-robot"></i> ${k.botId}</span>`;
+    }
+
+    return `
+      <tr>
+        <td><strong>${k.label}</strong></td>
+        <td>${assignedHtml}</td>
+        <td><code style="color:var(--accent);">${k.key}</code></td>
+        <td>${k.dailyLimit > 0 ? k.dailyLimit + ' / day' : 'Unlimited'}</td>
+        <td>${k.usedToday}</td>
+        <td><span style="color:${k.enabled ? 'var(--success)' : 'var(--err)'}; font-weight:600;">${k.enabled ? '<i class="fa-solid fa-circle-check"></i> Active' : '<i class="fa-solid fa-circle-xmark"></i> Disabled'}</span></td>
+        <td>${new Date(k.createdAt).toLocaleDateString()}</td>
+        <td>
+          <div style="display:flex; gap:6px;">
+            <button class="btn btn-secondary btn-sm" onclick="toggleKey('${k.id}')">${k.enabled ? 'Disable' : 'Enable'}</button>
+            <button class="btn btn-danger btn-sm" onclick="revokeKey('${k.id}')"><i class="fa-solid fa-trash"></i></button>
+          </div>
+        </td>
+      </tr>
+    `;
+  }).join('');
 }
 
 function showGenerateKeyModal() {
+  const botsList = window.lastBotsData || [];
+  const botOptions = botsList.map(b => `<option value="${b.id}">${b.label} (${b.status === 'open' ? 'Ready' : b.status}) ${b.botNumber ? '+'+b.botNumber : ''}</option>`).join('');
+
   showModal('Generate New API Key', `
     <div class="form-group">
       <label class="form-label">Application / Service Label</label>
       <input type="text" id="newKeyLabel" class="form-control" placeholder="Banking Web App / Mobile API">
+    </div>
+    <div class="form-group">
+      <label class="form-label">Route via WhatsApp Bot</label>
+      <select id="newKeyBotId" class="form-control">
+        <option value="all">All Connected Bots (Automatic Load Balance)</option>
+        ${botOptions}
+      </select>
+      <small style="color:var(--tx-muted); font-size:11px; margin-top:4px; display:block;">Select a dedicated bot or automatically distribute OTPs evenly among active bots.</small>
     </div>
     <div class="form-group">
       <label class="form-label">Daily Send Limit (0 = Unlimited)</label>
@@ -2690,17 +2935,18 @@ function showGenerateKeyModal() {
     </div>
   `, [
     { text: 'Cancel', cls: 'btn-secondary', fn: 'hideModal' },
-    { text: '<svg class="icon"><use href="#icon-key"/></svg> Create Key', cls: 'btn-primary', fn: submitGenerateKey }
+    { text: '<i class="fa-solid fa-key"></i> Create Key', cls: 'btn-primary', fn: submitGenerateKey }
   ]);
 }
 
 async function submitGenerateKey() {
-  const label = document.getElementById('newKeyLabel').value.trim() || 'App Key';
-  const dailyLimit = Number(document.getElementById('newKeyLimit').value) || 0;
+  const label = document.getElementById('newKeyLabel')?.value.trim() || 'App Key';
+  const dailyLimit = Number(document.getElementById('newKeyLimit')?.value) || 0;
+  const botId = document.getElementById('newKeyBotId')?.value || 'all';
   hideModal();
   toast('Generating key...', 'info');
   try {
-    const r = await api('/api/admin/keys/generate', 'POST', { label, dailyLimit });
+    const r = await api('/api/admin/keys/generate', 'POST', { label, dailyLimit, botId });
     if (r.ok && r.key) {
       showModal('API Key Generated (Save Now)', `
         <div style="padding:12px; background:var(--warn-light); border:1px solid rgba(245,158,11,0.3); border-radius:var(--radius-sm); color:var(--warn); font-size:12.5px; margin-bottom:14px;">
@@ -2710,7 +2956,7 @@ async function submitGenerateKey() {
           ${r.key.key}
         </div>
       `, [
-        { text: '<svg class="icon"><use href="#icon-copy"/></svg> Copy Key', cls: 'btn-primary', fn: () => {
+        { text: '<i class="fa-solid fa-copy"></i> Copy Key', cls: 'btn-primary', fn: () => {
           navigator.clipboard.writeText(r.key.key);
           toast('API Key copied to clipboard!', 'ok');
           hideModal();
@@ -2853,7 +3099,7 @@ function filterGuide(mode) {
     bodies.forEach(b => b.style.gridTemplateColumns = '1fr');
   } else if (mode === 'en') {
     urCols.forEach(el => el.style.display = 'none');
-    enCols.forEach(el => { el.style.display = 'block'); });
+    enCols.forEach(el => { el.style.display = 'block'; });
     bodies.forEach(b => b.style.gridTemplateColumns = '1fr');
   } else {
     enCols.forEach(el => el.style.display = 'block');
