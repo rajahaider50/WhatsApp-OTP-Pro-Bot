@@ -1,2729 +1,1062 @@
 <!DOCTYPE html>
-<html lang="en" data-theme="emerald">
+<html lang="en" dir="ltr">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-<title>OTP Bot Pro - Enterprise Admin</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&family=Noto+Nastaliq+Urdu:wght@400;600;700&display=swap" rel="stylesheet">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>OTP Bot Pro - Admin</title>
 <style>
-/* ==================== THEMES & VARIABLES ==================== */
-:root {
-  --font-sans: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
-  --font-mono: 'JetBrains Mono', monospace;
-  --font-urdu: 'Noto Nastaliq Urdu', 'Urdu Typesetting', Tahoma, sans-serif;
+:root{--bg:#070b14;--card:rgba(255,255,255,.05);--bd:rgba(255,255,255,.1);--tx:#e8eefc;--mut:#8b97b3;--ac:#25d366;--err:#ff6b6b;--warn:#ffc857;--info:#4fc3f7}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:system-ui,-apple-system,'Segoe UI',sans-serif;color:var(--tx);background:var(--bg);min-height:100vh}
 
-  /* Theme: Emerald (Official WhatsApp Brand) */
-  --bg-base: #0b141a;
-  --bg-surface: #111b21;
-  --bg-card: #182229;
-  --bg-card-hover: #1f2c34;
-  --bg-input: #202c33;
-  --bd-color: rgba(255, 255, 255, 0.08);
-  --bd-focus: #00a884;
-  --primary: #00a884;
-  --primary-rgb: 0, 168, 132;
-  --primary-hover: #06cf9c;
-  --primary-light: rgba(0, 168, 132, 0.14);
-  --accent: #25d366;
-  --tx-primary: #e9edef;
-  --tx-secondary: #8696a0;
-  --tx-muted: #667781;
-  --err: #ef4444;
-  --err-light: rgba(239, 68, 68, 0.15);
-  --warn: #f59e0b;
-  --warn-light: rgba(245, 158, 11, 0.15);
-  --info: #0284c7;
-  --info-light: rgba(2, 132, 199, 0.15);
-  --success: #22c55e;
-  --success-light: rgba(34, 197, 94, 0.15);
-  --nav-active-bg: rgba(0, 168, 132, 0.15);
-  --shadow-sm: 0 1px 3px rgba(0,0,0,0.3);
-  --shadow-md: 0 4px 14px rgba(0,0,0,0.4);
-  --shadow-lg: 0 12px 28px rgba(0,0,0,0.5);
-  --radius-sm: 8px;
-  --radius-md: 12px;
-  --radius-lg: 18px;
-  --radius-xl: 24px;
-}
+/* NAV */
+.nav{position:sticky;top:0;z-index:100;background:rgba(7,11,20,.95);backdrop-filter:blur(10px);border-bottom:1px solid var(--bd);padding:0 16px;display:flex;align-items:center;gap:4px}
+.nav-logo{font-weight:800;font-size:16px;color:var(--ac);padding:14px 8px;margin-right:8px;white-space:nowrap}
+.nav-tabs{display:flex;gap:2px;flex:1;overflow-x:auto;scrollbar-width:none}
+.nav-tabs::-webkit-scrollbar{display:none}
+.tab-btn{padding:14px 12px;border:0;background:0;color:var(--mut);cursor:pointer;font:inherit;font-size:13px;font-weight:600;border-bottom:2px solid transparent;white-space:nowrap;transition:.2s}
+.tab-btn:hover{color:var(--tx)}
+.tab-btn.active{color:var(--ac);border-bottom-color:var(--ac)}
+.nav-right{display:flex;align-items:center;gap:8px;padding:10px 0;margin-left:auto}
+#logoutBtn{padding:7px 14px;border:1px solid var(--bd);background:0;color:var(--mut);border-radius:8px;cursor:pointer;font:inherit;font-size:12px}
+#logoutBtn:hover{color:var(--tx);border-color:var(--tx)}
 
-[data-theme="slate"] {
-  --bg-base: #0b0f19;
-  --bg-surface: #111827;
-  --bg-card: #182234;
-  --bg-card-hover: #1f2c42;
-  --bg-input: #1e293b;
-  --bd-color: rgba(255, 255, 255, 0.09);
-  --bd-focus: #38bdf8;
-  --primary: #0ea5e9;
-  --primary-rgb: 14, 165, 233;
-  --primary-hover: #38bdf8;
-  --primary-light: rgba(14, 165, 233, 0.14);
-  --accent: #38bdf8;
-  --tx-primary: #f8fafc;
-  --tx-secondary: #94a3b8;
-  --tx-muted: #64748b;
-  --nav-active-bg: rgba(14, 165, 233, 0.15);
-}
+/* LAYOUT */
+.page{display:none;padding:16px;max-width:900px;margin:0 auto}
+.page.active{display:block}
 
-[data-theme="midnight"] {
-  --bg-base: #000000;
-  --bg-surface: #0a0a0a;
-  --bg-card: #141414;
-  --bg-card-hover: #1c1c1c;
-  --bg-input: #1a1a1a;
-  --bd-color: rgba(255, 255, 255, 0.12);
-  --bd-focus: #818cf8;
-  --primary: #6366f1;
-  --primary-rgb: 99, 102, 241;
-  --primary-hover: #818cf8;
-  --primary-light: rgba(99, 102, 241, 0.16);
-  --accent: #a855f7;
-  --tx-primary: #ffffff;
-  --tx-secondary: #a1a1aa;
-  --tx-muted: #71717a;
-  --nav-active-bg: rgba(99, 102, 241, 0.18);
-}
+/* CARDS */
+.card{background:var(--card);border:1px solid var(--bd);border-radius:14px;padding:16px;margin-bottom:14px}
+.card h2{font-size:14px;color:var(--ac);margin-bottom:12px;font-weight:700}
+.card-row{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
 
-/* ==================== RESET & BASE ==================== */
-*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-body {
-  font-family: var(--font-sans);
-  background-color: var(--bg-base);
-  color: var(--tx-primary);
-  line-height: 1.5;
-  -webkit-font-smoothing: antialiased;
-  min-height: 100vh;
-  overflow-x: hidden;
-}
-input, button, select, textarea {
-  font-family: inherit;
-  font-size: 14px;
-  color: inherit;
-}
-button {
-  cursor: pointer;
-  border: none;
-  background: none;
-  outline: none;
-}
-a { color: var(--primary); text-decoration: none; }
-pre, code { font-family: var(--font-mono); }
+/* GRID */
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.grid4{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+@media(max-width:600px){.grid2{grid-template-columns:1fr}.grid4{grid-template-columns:repeat(2,1fr)}}
 
-/* SVG Icon Helper */
-.icon {
-  display: inline-block;
-  width: 20px;
-  height: 20px;
-  stroke-width: 2;
-  stroke: currentColor;
-  fill: none;
-  stroke-linecap: round;
-  stroke-linejoin: round;
-  vertical-align: middle;
-  flex-shrink: 0;
-}
-.icon-sm { width: 16px; height: 16px; }
-.icon-lg { width: 24px; height: 24px; }
-.icon-xl { width: 32px; height: 32px; }
+/* STAT BOX */
+.stat{text-align:center;padding:12px 6px;border-radius:12px;background:rgba(0,0,0,.25);border:1px solid var(--bd)}
+.stat b{display:block;font-size:22px;margin-bottom:2px}
+.stat span{font-size:11px;color:var(--mut)}
+.stat.ok b{color:var(--ac)}.stat.err b{color:var(--err)}.stat.warn b{color:var(--warn)}.stat.info b{color:var(--info)}
 
-/* ==================== APP SHELL (DESKTOP + ANDROID) ==================== */
-.app-container {
-  display: flex;
-  min-height: 100vh;
-  position: relative;
-}
+/* PILLS */
+.pill{display:inline-block;font-size:11px;padding:3px 9px;border-radius:99px;border:1px solid var(--bd);color:var(--mut)}
+.pill.ok{color:var(--ac);border-color:rgba(37,211,102,.4);background:rgba(37,211,102,.08)}
+.pill.bad{color:var(--err);border-color:rgba(255,107,107,.4);background:rgba(255,107,107,.08)}
+.pill.warn{color:var(--warn);border-color:rgba(255,200,87,.4);background:rgba(255,200,87,.08)}
+.pill.info{color:var(--info);border-color:rgba(79,195,247,.4)}
 
-/* DESKTOP SIDEBAR */
-.sidebar {
-  width: 260px;
-  background: var(--bg-surface);
-  border-right: 1px solid var(--bd-color);
-  display: flex;
-  flex-direction: column;
-  position: fixed;
-  top: 0;
-  bottom: 0;
-  left: 0;
-  z-index: 100;
-  transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1);
-}
-.sidebar-header {
-  padding: 20px 18px 16px;
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  border-bottom: 1px solid var(--bd-color);
-}
-.brand-logo-wrap {
-  width: 40px;
-  height: 40px;
-  border-radius: var(--radius-md);
-  background: var(--primary-light);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: var(--primary);
-  box-shadow: 0 0 15px rgba(var(--primary-rgb), 0.25);
-}
-.brand-info h1 {
-  font-size: 16px;
-  font-weight: 700;
-  letter-spacing: -0.2px;
-  color: var(--tx-primary);
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-.brand-badge {
-  font-size: 10px;
-  font-weight: 700;
-  padding: 2px 6px;
-  border-radius: 6px;
-  background: var(--primary-light);
-  color: var(--primary);
-  text-transform: uppercase;
-}
-.brand-sub {
-  font-size: 11px;
-  color: var(--tx-muted);
-  display: flex;
-  align-items: center;
-  gap: 5px;
-}
-.brand-sub .live-dot {
-  width: 7px;
-  height: 7px;
-  border-radius: 50%;
-  background: var(--success);
-  display: inline-block;
-  box-shadow: 0 0 6px var(--success);
-  animation: pulse 2s infinite;
-}
-@keyframes pulse {
-  0% { transform: scale(0.95); opacity: 0.8; }
-  50% { transform: scale(1.15); opacity: 1; }
-  100% { transform: scale(0.95); opacity: 0.8; }
-}
-
-.sidebar-nav {
-  flex: 1;
-  padding: 16px 10px;
-  overflow-y: auto;
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-.nav-category {
-  font-size: 10px;
-  font-weight: 700;
-  text-transform: uppercase;
-  color: var(--tx-muted);
-  letter-spacing: 0.8px;
-  padding: 10px 10px 4px;
-}
-.nav-item {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 10px 14px;
-  border-radius: var(--radius-md);
-  color: var(--tx-secondary);
-  font-size: 13.5px;
-  font-weight: 500;
-  transition: all 0.15s ease;
-  position: relative;
-  text-align: left;
-  width: 100%;
-}
-.nav-item:hover {
-  background: var(--bg-card-hover);
-  color: var(--tx-primary);
-}
-.nav-item.active {
-  background: var(--nav-active-bg);
-  color: var(--primary);
-  font-weight: 600;
-}
-.nav-item.active::before {
-  content: '';
-  position: absolute;
-  left: 0;
-  top: 10%;
-  bottom: 10%;
-  width: 3.5px;
-  border-radius: 0 4px 4px 0;
-  background: var(--primary);
-}
-.nav-item .badge {
-  margin-left: auto;
-  font-size: 11px;
-  font-weight: 700;
-  padding: 2px 7px;
-  border-radius: 12px;
-  background: var(--bg-surface);
-  color: var(--tx-muted);
-}
-.nav-item.active .badge {
-  background: var(--primary);
-  color: #fff;
-}
-
-.sidebar-footer {
-  padding: 14px 16px;
-  border-top: 1px solid var(--bd-color);
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-.quick-links {
-  display: flex;
-  gap: 8px;
-}
-.quick-btn {
-  flex: 1;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
-  padding: 8px;
-  background: var(--bg-card);
-  border: 1px solid var(--bd-color);
-  border-radius: var(--radius-sm);
-  font-size: 12px;
-  color: var(--tx-secondary);
-  transition: all 0.15s;
-}
-.quick-btn:hover {
-  background: var(--bg-card-hover);
-  color: var(--tx-primary);
-  border-color: var(--primary);
-}
-.user-profile {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding-top: 4px;
-}
-.user-info {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-.user-avatar {
-  width: 32px;
-  height: 32px;
-  border-radius: 50%;
-  background: var(--primary-light);
-  color: var(--primary);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-weight: 700;
-  font-size: 13px;
-}
-.user-text .user-name { font-size: 12.5px; font-weight: 600; color: var(--tx-primary); }
-.user-text .user-role { font-size: 10.5px; color: var(--tx-muted); }
-.btn-icon-danger {
-  width: 32px;
-  height: 32px;
-  border-radius: var(--radius-sm);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: var(--tx-muted);
-  transition: all 0.15s;
-}
-.btn-icon-danger:hover {
-  background: var(--err-light);
-  color: var(--err);
-}
-
-/* MAIN CONTENT LAYOUT */
-.main-wrapper {
-  flex: 1;
-  margin-left: 260px;
-  min-height: 100vh;
-  display: flex;
-  flex-direction: column;
-}
-
-/* TOP APP BAR (HEADER) */
-.topbar {
-  height: 64px;
-  background: var(--bg-surface);
-  border-bottom: 1px solid var(--bd-color);
-  padding: 0 24px;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  position: sticky;
-  top: 0;
-  z-index: 90;
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-}
-.topbar-left {
-  display: flex;
-  align-items: center;
-  gap: 14px;
-}
-.mobile-brand {
-  display: none;
-  align-items: center;
-  gap: 10px;
-}
-.page-title {
-  font-size: 18px;
-  font-weight: 700;
-  color: var(--tx-primary);
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-.topbar-right {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-.status-pill {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  padding: 5px 12px;
-  border-radius: 20px;
-  font-size: 12px;
-  font-weight: 600;
-  background: var(--bg-card);
-  border: 1px solid var(--bd-color);
-}
-.status-pill.online {
-  color: var(--success);
-  border-color: rgba(34, 197, 94, 0.25);
-  background: var(--success-light);
-}
-.status-pill.offline {
-  color: var(--warn);
-  border-color: rgba(245, 158, 11, 0.25);
-  background: var(--warn-light);
-}
-.theme-picker {
-  display: flex;
-  align-items: center;
-  background: var(--bg-card);
-  border: 1px solid var(--bd-color);
-  border-radius: var(--radius-md);
-  padding: 3px;
-  gap: 2px;
-}
-.theme-dot {
-  width: 26px;
-  height: 26px;
-  border-radius: var(--radius-sm);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: var(--tx-muted);
-  transition: all 0.15s;
-}
-.theme-dot:hover { color: var(--tx-primary); }
-.theme-dot.active {
-  background: var(--primary);
-  color: #fff;
-  box-shadow: 0 2px 6px rgba(var(--primary-rgb), 0.4);
-}
-.btn-topbar {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  padding: 7px 12px;
-  border-radius: var(--radius-md);
-  background: var(--bg-card);
-  border: 1px solid var(--bd-color);
-  font-size: 12.5px;
-  font-weight: 500;
-  color: var(--tx-secondary);
-  transition: all 0.15s;
-}
-.btn-topbar:hover {
-  background: var(--bg-card-hover);
-  color: var(--tx-primary);
-  border-color: var(--primary);
-}
-
-/* CONTENT CONTAINER */
-.page-content {
-  flex: 1;
-  padding: 24px;
-  max-width: 1380px;
-  margin: 0 auto;
-  width: 100%;
-}
-.tab-section {
-  display: none;
-  animation: fadeIn 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-}
-.tab-section.active {
-  display: block;
-}
-@keyframes fadeIn {
-  from { opacity: 0; transform: translateY(6px); }
-  to { opacity: 1; transform: translateY(0); }
-}
-
-/* ANDROID NATIVE BOTTOM NAVIGATION (MOBILE ONLY) */
-.bottom-nav {
-  display: none;
-  position: fixed;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  height: 64px;
-  background: var(--bg-surface);
-  border-top: 1px solid var(--bd-color);
-  z-index: 100;
-  padding: 0 4px calc(env(safe-area-inset-bottom, 0px));
-  box-shadow: 0 -4px 16px rgba(0,0,0,0.4);
-}
-.bottom-nav-inner {
-  display: flex;
-  height: 100%;
-  align-items: center;
-  justify-content: space-around;
-  overflow-x: auto;
-}
-.b-nav-item {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 3px;
-  flex: 1;
-  min-width: 50px;
-  height: 100%;
-  color: var(--tx-muted);
-  font-size: 10px;
-  font-weight: 600;
-  transition: all 0.15s;
-}
-.b-nav-icon-wrap {
-  padding: 4px 14px;
-  border-radius: 16px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: all 0.2s;
-}
-.b-nav-item.active {
-  color: var(--primary);
-}
-.b-nav-item.active .b-nav-icon-wrap {
-  background: var(--nav-active-bg);
-  color: var(--primary);
-}
-
-/* ==================== UI COMPONENTS & CARDS ==================== */
-.card {
-  background: var(--bg-surface);
-  border: 1px solid var(--bd-color);
-  border-radius: var(--radius-lg);
-  padding: 20px;
-  box-shadow: var(--shadow-sm);
-  margin-bottom: 20px;
-  transition: border-color 0.2s;
-}
-.card:hover {
-  border-color: rgba(255,255,255,0.14);
-}
-.card-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 16px;
-  padding-bottom: 12px;
-  border-bottom: 1px solid var(--bd-color);
-}
-.card-title {
-  font-size: 15px;
-  font-weight: 700;
-  color: var(--tx-primary);
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-.card-desc {
-  font-size: 12px;
-  color: var(--tx-muted);
-  margin-top: 2px;
-}
-
-/* STATS GRIDS */
-.stats-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-  gap: 16px;
-  margin-bottom: 24px;
-}
-.stat-card {
-  background: var(--bg-surface);
-  border: 1px solid var(--bd-color);
-  border-radius: var(--radius-lg);
-  padding: 18px;
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  position: relative;
-  overflow: hidden;
-}
-.stat-card::after {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  height: 2px;
-  background: var(--bd-color);
-}
-.stat-card.c-primary::after { background: var(--primary); }
-.stat-card.c-success::after { background: var(--success); }
-.stat-card.c-warn::after { background: var(--warn); }
-.stat-card.c-err::after { background: var(--err); }
-
-.stat-icon {
-  width: 44px;
-  height: 44px;
-  border-radius: var(--radius-md);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-.stat-icon.c-primary { background: var(--primary-light); color: var(--primary); }
-.stat-icon.c-success { background: var(--success-light); color: var(--success); }
-.stat-icon.c-warn { background: var(--warn-light); color: var(--warn); }
-.stat-icon.c-err { background: var(--err-light); color: var(--err); }
-
-.stat-label {
-  font-size: 12px;
-  font-weight: 600;
-  color: var(--tx-muted);
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-}
-.stat-val {
-  font-size: 26px;
-  font-weight: 800;
-  color: var(--tx-primary);
-  margin-top: 4px;
-  letter-spacing: -0.5px;
-}
-.stat-sub {
-  font-size: 11.5px;
-  color: var(--tx-secondary);
-  margin-top: 2px;
-}
+/* FORM ELEMENTS */
+input,textarea,select{font:inherit;color:var(--tx);border-radius:9px;border:1px solid var(--bd);background:rgba(0,0,0,.35);padding:10px 12px;width:100%;transition:.2s;font-size:14px}
+input:focus,textarea:focus,select:focus{outline:none;border-color:var(--ac);box-shadow:0 0 0 3px rgba(37,211,102,.1)}
+textarea{min-height:100px;resize:vertical}
+label.lbl{font-size:12px;color:var(--mut);display:block;margin:10px 0 4px}
 
 /* BUTTONS */
-.btn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  padding: 9px 18px;
-  border-radius: var(--radius-md);
-  font-size: 13.5px;
-  font-weight: 600;
-  transition: all 0.15s ease;
-  white-space: nowrap;
-}
-.btn-primary {
-  background: var(--primary);
-  color: #fff;
-  box-shadow: 0 2px 10px rgba(var(--primary-rgb), 0.3);
-}
-.btn-primary:hover {
-  background: var(--primary-hover);
-  transform: translateY(-1px);
-  box-shadow: 0 4px 14px rgba(var(--primary-rgb), 0.4);
-}
-.btn-secondary {
-  background: var(--bg-card);
-  border: 1px solid var(--bd-color);
-  color: var(--tx-primary);
-}
-.btn-secondary:hover {
-  background: var(--bg-card-hover);
-  border-color: rgba(255,255,255,0.2);
-}
-.btn-danger {
-  background: var(--err-light);
-  border: 1px solid rgba(239, 68, 68, 0.3);
-  color: var(--err);
-}
-.btn-danger:hover {
-  background: var(--err);
-  color: #fff;
-}
-.btn-sm {
-  padding: 6px 12px;
-  font-size: 12px;
-  border-radius: var(--radius-sm);
-}
+button{font:inherit;cursor:pointer;border-radius:9px;border:1px solid var(--bd);background:rgba(255,255,255,.07);color:var(--tx);padding:9px 16px;font-size:13px;font-weight:600;transition:.2s}
+button:hover{background:rgba(255,255,255,.12)}
+button:disabled{opacity:.45;cursor:not-allowed}
+button.p{background:linear-gradient(135deg,var(--ac),#7cf0a8);color:#04210f;border:0}
+button.p:hover{box-shadow:0 4px 14px rgba(37,211,102,.3);transform:translateY(-1px)}
+button.d{border-color:rgba(255,107,107,.4);color:var(--err)}
+button.d:hover{background:rgba(255,107,107,.1)}
+button.sm{padding:6px 12px;font-size:12px}
 
-/* FORMS & INPUTS */
-.form-group {
-  margin-bottom: 16px;
-}
-.form-label {
-  display: block;
-  font-size: 12.5px;
-  font-weight: 600;
-  color: var(--tx-secondary);
-  margin-bottom: 6px;
-}
-.form-control {
-  width: 100%;
-  padding: 10px 14px;
-  background: var(--bg-input);
-  border: 1px solid var(--bd-color);
-  border-radius: var(--radius-md);
-  color: var(--tx-primary);
-  font-size: 13.5px;
-  transition: border-color 0.15s, box-shadow 0.15s;
-}
-.form-control:focus {
-  outline: none;
-  border-color: var(--bd-focus);
-  box-shadow: 0 0 0 3px rgba(var(--primary-rgb), 0.2);
-}
-textarea.form-control {
-  min-height: 100px;
-  resize: vertical;
-}
+/* TABLES */
+table{width:100%;border-collapse:collapse;font-size:13px}
+th,td{padding:8px 10px;border-bottom:1px solid var(--bd);text-align:left;vertical-align:middle}
+th{color:var(--mut);font-weight:600;font-size:11px;text-transform:uppercase;letter-spacing:.5px}
+tr:hover td{background:rgba(255,255,255,.02)}
 
-/* PHONE INPUT WITH LOCKED +92 BADGE (USER REQUEST) */
-.phone-input-group {
-  display: flex;
-  align-items: stretch;
-  background: var(--bg-input);
-  border: 1px solid var(--bd-color);
-  border-radius: var(--radius-md);
-  overflow: hidden;
-  transition: border-color 0.15s, box-shadow 0.15s;
-}
-.phone-input-group:focus-within {
-  border-color: var(--bd-focus);
-  box-shadow: 0 0 0 3px rgba(var(--primary-rgb), 0.2);
-}
-.phone-prefix-locked {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  padding: 0 14px;
-  background: rgba(255, 255, 255, 0.05);
-  border-right: 1px solid var(--bd-color);
-  font-family: var(--font-mono);
-  font-size: 14px;
-  font-weight: 700;
-  color: var(--primary);
-  user-select: none;
-}
-.phone-prefix-flag {
-  font-size: 14px;
-}
-.phone-input-field {
-  flex: 1;
-  padding: 11px 14px;
-  background: transparent;
-  border: none;
-  outline: none;
-  color: var(--tx-primary);
-  font-family: var(--font-mono);
-  font-size: 15px;
-  letter-spacing: 0.5px;
-}
-.phone-helper-box {
-  margin-top: 6px;
-  padding: 8px 12px;
-  background: rgba(0, 168, 132, 0.06);
-  border: 1px solid rgba(0, 168, 132, 0.15);
-  border-radius: var(--radius-sm);
-  display: flex;
-  flex-direction: column;
-  gap: 3px;
-}
-.phone-helper-ur {
-  font-family: var(--font-urdu);
-  font-size: 13px;
-  color: #25d366;
-  direction: rtl;
-  text-align: right;
-  line-height: 1.8;
-}
-.phone-helper-en {
-  font-size: 11.5px;
-  color: var(--tx-muted);
-}
-.phone-preview-badge {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  margin-top: 6px;
-  font-size: 12px;
-  font-family: var(--font-mono);
-  color: var(--accent);
-  background: var(--primary-light);
-  padding: 4px 10px;
-  border-radius: 6px;
-}
+/* BOT CARD */
+.bot-card{background:rgba(0,0,0,.2);border:1px solid var(--bd);border-radius:12px;padding:14px;margin-bottom:12px}
+.bot-card.linked{border-color:rgba(37,211,102,.3)}
+.bot-header{display:flex;align-items:center;gap:10px;margin-bottom:12px;flex-wrap:wrap}
+.bot-label{font-weight:700;font-size:15px}
+.bot-id{font-size:11px;color:var(--mut);background:rgba(255,255,255,.05);padding:2px 7px;border-radius:5px;font-family:monospace}
+.bot-actions{display:flex;gap:6px;flex-wrap:wrap;margin-top:10px}
+.qr-area{text-align:center;margin:10px 0}
+.qr-area img{width:200px;max-width:100%;background:#fff;border-radius:10px;padding:6px}
+.pair-code{font-size:32px;font-weight:800;letter-spacing:6px;text-align:center;color:var(--warn);margin:8px 0;font-family:monospace}
+.hist-table{font-size:11px;margin-top:10px}
+.hist-table th{font-size:10px}
 
-/* ==================== BOTS MANAGEMENT STYLING ==================== */
-.bot-cards-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(380px, 1fr));
-  gap: 20px;
-}
-.bot-card {
-  background: var(--bg-surface);
-  border: 1px solid var(--bd-color);
-  border-radius: var(--radius-xl);
-  padding: 22px;
-  position: relative;
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-  transition: all 0.2s ease;
-}
-.bot-card.status-open {
-  border-color: rgba(34, 197, 94, 0.35);
-  box-shadow: 0 4px 20px rgba(34, 197, 94, 0.06);
-}
-.bot-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-}
-.bot-identity {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-.bot-avatar-box {
-  width: 46px;
-  height: 46px;
-  border-radius: var(--radius-md);
-  background: var(--primary-light);
-  color: var(--primary);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-.bot-card.status-open .bot-avatar-box {
-  background: var(--success-light);
-  color: var(--success);
-}
-.bot-name-group h3 {
-  font-size: 16px;
-  font-weight: 700;
-  color: var(--tx-primary);
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-.bot-phone-pill {
-  font-family: var(--font-mono);
-  font-size: 12px;
-  color: var(--tx-secondary);
-  display: inline-block;
-  margin-top: 2px;
-}
-.bot-status-badge {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 4px 10px;
-  border-radius: 14px;
-  font-size: 11px;
-  font-weight: 700;
-  text-transform: uppercase;
-}
-.badge-open { background: var(--success-light); color: var(--success); border: 1px solid rgba(34,197,94,0.3); }
-.badge-pairing { background: var(--warn-light); color: var(--warn); border: 1px solid rgba(245,158,11,0.3); }
-.badge-idle { background: var(--bg-card); color: var(--tx-muted); border: 1px solid var(--bd-color); }
-.badge-closed { background: var(--err-light); color: var(--err); border: 1px solid rgba(239,68,68,0.3); }
+/* CODE BLOCKS */
+pre,code{font-family:'Fira Code','Cascadia Code',monospace;font-size:12px}
+.code-block{position:relative;background:rgba(0,0,0,.5);border:1px solid var(--bd);border-radius:10px;padding:14px;margin:8px 0}
+.code-block pre{overflow-x:auto;white-space:pre;color:#a8d8a8;line-height:1.6}
+.copy-btn{position:absolute;top:8px;right:8px;padding:4px 10px;font-size:11px;border-radius:6px}
+.snippet-tabs{display:flex;gap:6px;margin-bottom:8px}
+.snippet-tab{padding:6px 14px;font-size:12px;border-radius:7px}
+.snippet-tab.active{background:var(--ac);color:#04210f;border-color:transparent}
 
-/* PAIRING CODE SEGMENTED BADGE */
-.pairing-code-container {
-  background: var(--bg-input);
-  border: 1px solid rgba(245, 158, 11, 0.3);
-  border-radius: var(--radius-lg);
-  padding: 16px;
-  text-align: center;
-}
-.pairing-title {
-  font-size: 12px;
-  font-weight: 700;
-  text-transform: uppercase;
-  color: var(--warn);
-  letter-spacing: 0.5px;
-  margin-bottom: 10px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
-}
-.code-boxes-wrap {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
-  margin: 12px 0;
-}
-.code-box {
-  width: 32px;
-  height: 42px;
-  background: var(--bg-card);
-  border: 1.5px solid var(--warn);
-  border-radius: 8px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-family: var(--font-mono);
-  font-size: 20px;
-  font-weight: 800;
-  color: #fff;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.3);
-}
-.code-dash {
-  font-size: 20px;
-  font-weight: 800;
-  color: var(--warn);
-  margin: 0 4px;
-}
-.pairing-steps-box {
-  background: rgba(0,0,0,0.25);
-  border-radius: var(--radius-sm);
-  padding: 10px;
-  margin-top: 10px;
-  text-align: left;
-}
-.step-item {
-  font-size: 11px;
-  color: var(--tx-secondary);
-  display: flex;
-  align-items: flex-start;
-  gap: 6px;
-  margin-bottom: 4px;
-}
-.step-item:last-child { margin-bottom: 0; }
-.step-num {
-  width: 16px;
-  height: 16px;
-  border-radius: 50%;
-  background: var(--warn-light);
-  color: var(--warn);
-  font-weight: 700;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 9px;
-  flex-shrink: 0;
-}
+/* SWITCH */
+.sw{display:flex;align-items:center;gap:10px;margin:8px 0}
+.sw-label{font-size:13px;flex:1}
+.toggle{position:relative;width:42px;height:24px;cursor:pointer;flex-shrink:0}
+.toggle input{opacity:0;width:0;height:0}
+.slider{position:absolute;inset:0;background:rgba(255,255,255,.15);border-radius:99px;transition:.3s}
+.slider:before{content:'';position:absolute;width:18px;height:18px;left:3px;top:3px;background:#fff;border-radius:50%;transition:.3s}
+input:checked+.slider{background:var(--ac)}
+input:checked+.slider:before{transform:translateX(18px)}
 
-/* BOT ACTION BUTTONS */
-.bot-actions-row {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  margin-top: auto;
-  padding-top: 12px;
-  border-top: 1px solid var(--bd-color);
-}
+/* LOG */
+.log-pre{max-height:360px;overflow:auto;background:rgba(0,0,0,.4);border:1px solid var(--bd);border-radius:10px;padding:12px;font-size:11px;line-height:1.7;scrollbar-width:thin}
+.l-error{color:var(--err)}.l-warn{color:var(--warn)}.l-info{color:var(--info)}
+.errrow{border:1px solid rgba(255,107,107,.25);background:rgba(255,107,107,.05);border-radius:9px;padding:10px;margin-bottom:8px;font-size:12px}
+.errrow .esrc{color:var(--warn);font-family:monospace;font-size:11px;margin-top:2px}
+.errrow .ehint{color:var(--ac);margin-top:4px;font-size:12px}
 
-/* ==================== DIRECT CHAT MESSENGER ==================== */
-.chat-layout {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 24px;
-}
-.chat-send-card {
-  background: var(--bg-surface);
-  border: 1px solid var(--bd-color);
-  border-radius: var(--radius-xl);
-  padding: 24px;
-}
-.chat-preview-card {
-  background: var(--bg-surface);
-  border: 1px solid var(--bd-color);
-  border-radius: var(--radius-xl);
-  padding: 24px;
-  display: flex;
-  flex-direction: column;
-}
-.whatsapp-bubble-preview {
-  background: #005c4b;
-  color: #e9edef;
-  border-radius: 12px 12px 2px 12px;
-  padding: 14px 16px;
-  max-width: 85%;
-  align-self: flex-end;
-  position: relative;
-  font-size: 14px;
-  line-height: 1.5;
-  box-shadow: 0 2px 5px rgba(0,0,0,0.3);
-  margin-top: 20px;
-  white-space: pre-wrap;
-  word-break: break-word;
-}
-.bubble-time {
-  font-size: 10px;
-  color: rgba(255,255,255,0.6);
-  text-align: right;
-  margin-top: 4px;
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-  gap: 4px;
-}
+/* URL BOX */
+.url-box{background:rgba(0,0,0,.4);border:1px solid var(--bd);border-radius:9px;padding:10px 12px;font-family:monospace;font-size:13px;word-break:break-all;display:flex;align-items:center;gap:8px}
+.url-text{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 
-/* ==================== BILINGUAL GUIDE TAB ==================== */
-.guide-tabs-bar {
-  display: flex;
-  gap: 8px;
-  margin-bottom: 20px;
-  background: var(--bg-surface);
-  padding: 6px;
-  border-radius: var(--radius-lg);
-  border: 1px solid var(--bd-color);
-}
-.guide-tab-btn {
-  flex: 1;
-  padding: 8px 16px;
-  border-radius: var(--radius-md);
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--tx-secondary);
-  transition: all 0.15s;
-}
-.guide-tab-btn.active {
-  background: var(--primary);
-  color: #fff;
-}
-.guide-card {
-  background: var(--bg-surface);
-  border: 1px solid var(--bd-color);
-  border-radius: var(--radius-lg);
-  margin-bottom: 16px;
-  overflow: hidden;
-}
-.guide-card-head {
-  padding: 16px 20px;
-  background: var(--bg-card);
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  cursor: pointer;
-  user-select: none;
-}
-.guide-card-head h4 {
-  font-size: 15px;
-  font-weight: 700;
-  color: var(--tx-primary);
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-.guide-card-body {
-  padding: 20px;
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 20px;
-  border-top: 1px solid var(--bd-color);
-}
-.guide-col-en {
-  font-size: 13.5px;
-  color: var(--tx-secondary);
-  line-height: 1.6;
-}
-.guide-col-ur {
-  font-family: var(--font-urdu);
-  font-size: 15px;
-  color: var(--tx-primary);
-  line-height: 2;
-  direction: rtl;
-  text-align: right;
-  border-right: 1px solid var(--bd-color);
-  padding-right: 20px;
-}
-.guide-col-en h5, .guide-col-ur h5 {
-  font-size: 13px;
-  font-weight: 700;
-  color: var(--primary);
-  margin-bottom: 8px;
-  text-transform: uppercase;
-}
+/* MODAL */
+.modal-bg{display:none;position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:1000;align-items:center;justify-content:center;padding:16px}
+.modal-bg.open{display:flex}
+.modal{background:#0d1526;border:1px solid var(--bd);border-radius:16px;padding:24px;width:100%;max-width:480px;max-height:90vh;overflow-y:auto}
+.modal h3{font-size:16px;margin-bottom:14px;color:var(--ac)}
+.modal-btns{display:flex;gap:8px;justify-content:flex-end;margin-top:16px;flex-wrap:wrap}
+.key-reveal{background:rgba(37,211,102,.08);border:2px solid rgba(37,211,102,.3);border-radius:10px;padding:14px;margin:12px 0;font-family:monospace;font-size:14px;word-break:break-all;color:var(--ac);text-align:center}
+.key-warn{color:var(--err);font-size:12px;text-align:center;margin-top:6px}
 
-/* ==================== TABLES ==================== */
-.table-responsive {
-  width: 100%;
-  overflow-x: auto;
-}
-table.custom-table {
-  width: 100%;
-  border-collapse: collapse;
-  text-align: left;
-}
-table.custom-table th {
-  padding: 12px 16px;
-  font-size: 11px;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.6px;
-  color: var(--tx-muted);
-  border-bottom: 1px solid var(--bd-color);
-  background: rgba(255,255,255,0.02);
-}
-table.custom-table td {
-  padding: 14px 16px;
-  font-size: 13px;
-  color: var(--tx-secondary);
-  border-bottom: 1px solid var(--bd-color);
-}
-table.custom-table tr:hover td {
-  background: var(--bg-card-hover);
-  color: var(--tx-primary);
-}
+/* TOAST */
+#toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:#1a2540;border:1px solid var(--bd);padding:10px 18px;border-radius:12px;font-size:13px;display:none;z-index:9999;max-width:90%;text-align:center;box-shadow:0 8px 30px rgba(0,0,0,.4)}
 
-/* ==================== MODAL OVERLAY ==================== */
-.modal-overlay {
-  display: none;
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: rgba(0, 0, 0, 0.75);
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
-  z-index: 1000;
-  align-items: center;
-  justify-content: center;
-  padding: 16px;
-}
-.modal-overlay.active {
-  display: flex;
-}
-.modal-box {
-  background: var(--bg-surface);
-  border: 1px solid var(--bd-color);
-  border-radius: var(--radius-xl);
-  max-width: 500px;
-  width: 100%;
-  box-shadow: var(--shadow-lg);
-  overflow: hidden;
-  animation: modalPop 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-}
-@keyframes modalPop {
-  from { opacity: 0; transform: scale(0.95); }
-  to { opacity: 1; transform: scale(1); }
-}
-.modal-header {
-  padding: 18px 20px;
-  border-bottom: 1px solid var(--bd-color);
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-}
-.modal-header h3 {
-  font-size: 16px;
-  font-weight: 700;
-  color: var(--tx-primary);
-}
-.modal-body {
-  padding: 20px;
-  max-height: 75vh;
-  overflow-y: auto;
-}
-.modal-footer {
-  padding: 14px 20px;
-  border-top: 1px solid var(--bd-color);
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-  gap: 10px;
-  background: var(--bg-card);
-}
-
-/* TOAST NOTIFICATIONS */
-.toast-container {
-  position: fixed;
-  bottom: 24px;
-  right: 24px;
-  z-index: 2000;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  pointer-events: none;
-}
-.toast {
-  pointer-events: auto;
-  padding: 12px 18px;
-  border-radius: var(--radius-md);
-  background: var(--bg-surface);
-  border: 1px solid var(--bd-color);
-  box-shadow: var(--shadow-lg);
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  font-size: 13.5px;
-  font-weight: 600;
-  color: var(--tx-primary);
-  animation: toastIn 0.25s ease;
-  min-width: 260px;
-}
-.toast.t-ok { border-color: var(--success); color: var(--success); }
-.toast.t-err { border-color: var(--err); color: var(--err); }
-.toast.t-info { border-color: var(--primary); color: var(--primary); }
-@keyframes toastIn {
-  from { opacity: 0; transform: translateY(12px); }
-  to { opacity: 1; transform: translateY(0); }
-}
-
-/* ==================== LOGIN VIEW ==================== */
-#loginView {
-  display: none;
-  min-height: 100vh;
-  align-items: center;
-  justify-content: center;
-  padding: 20px;
-  background: radial-gradient(circle at 50% 30%, rgba(var(--primary-rgb), 0.15), transparent 70%), var(--bg-base);
-}
-.login-card {
-  width: 100%;
-  max-width: 420px;
-  background: var(--bg-surface);
-  border: 1px solid var(--bd-color);
-  border-radius: var(--radius-xl);
-  padding: 32px 28px;
-  box-shadow: var(--shadow-lg);
-  text-align: center;
-}
-.login-logo {
-  width: 56px;
-  height: 56px;
-  border-radius: var(--radius-lg);
-  background: var(--primary-light);
-  color: var(--primary);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  margin: 0 auto 16px;
-  box-shadow: 0 0 20px rgba(var(--primary-rgb), 0.3);
-}
-
-/* ==================== RESPONSIVE RULES (ANDROID NATIVE STYLE) ==================== */
-@media (max-width: 768px) {
-  .sidebar { display: none; }
-  .main-wrapper { margin-left: 0; padding-bottom: 74px; }
-  .mobile-brand { display: flex; }
-  .topbar-left .page-title { display: none; }
-  .bottom-nav { display: block; }
-  .topbar { padding: 0 16px; height: 58px; }
-  .page-content { padding: 16px 12px; }
-  .stats-grid { grid-template-columns: 1fr 1fr; gap: 10px; }
-  .stat-card { padding: 14px; }
-  .stat-val { font-size: 20px; }
-  .chat-layout { grid-template-columns: 1fr; }
-  .guide-card-body { grid-template-columns: 1fr; }
-  .guide-col-ur { border-right: none; padding-right: 0; border-top: 1px solid var(--bd-color); padding-top: 16px; }
-  .modal-overlay { align-items: flex-end; padding: 0; }
-  .modal-box { border-radius: 20px 20px 0 0; max-width: 100%; }
-  .bot-cards-grid { grid-template-columns: 1fr; }
-  .toast-container { bottom: 80px; left: 16px; right: 16px; }
-  .toast { min-width: auto; }
-}
+/* MISC */
+.mut{color:var(--mut);font-size:12px}
+.hide{display:none!important}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.grow{flex:1;min-width:120px}
+.sep{height:1px;background:var(--bd);margin:14px 0}
+.int-section{background:rgba(37,211,102,.04);border:1px solid rgba(37,211,102,.15);border-radius:12px;padding:14px;margin-top:12px}
+.int-section h3{font-size:13px;color:var(--ac);margin-bottom:10px}
 </style>
 </head>
 <body>
 
-<!-- ==================== SVG ICONS DEF ==================== -->
-<svg style="display:none">
-  <defs>
-    <!-- WhatsApp Brand Logo Glyph -->
-    <g id="icon-whatsapp">
-      <path d="M12 2C6.48 2 2 6.48 2 12C2 13.85 2.5 15.58 3.38 17.07L2 22L7.07 20.66C8.52 21.51 10.2 22 12 22C17.52 22 22 17.52 22 12C22 6.48 17.52 2 12 2ZM16.63 15.93C16.42 16.52 15.42 17.06 14.92 17.13C14.47 17.2 13.9 17.23 11.96 16.43C9.48 15.41 7.89 12.87 7.76 12.7C7.64 12.53 6.75 11.35 6.75 10.13C6.75 8.91 7.37 8.32 7.6 8.08C7.79 7.88 8.05 7.8 8.31 7.8C8.39 7.8 8.48 7.8 8.55 7.81C8.77 7.82 8.88 7.83 9.03 8.19C9.21 8.63 9.66 9.73 9.71 9.85C9.77 9.97 9.81 10.12 9.73 10.28C9.65 10.44 9.59 10.51 9.47 10.65C9.35 10.79 9.24 10.89 9.12 11.04C8.98 11.19 8.84 11.35 9 11.62C9.16 11.89 9.72 12.8 10.54 13.53C11.6 14.47 12.47 14.77 12.78 14.9C13.01 15 13.19 14.98 13.35 14.8C13.55 14.57 13.84 14.15 14.07 13.82C14.25 13.56 14.46 13.6 14.71 13.69C14.96 13.78 16.32 14.45 16.6 14.59C16.88 14.73 17.07 14.8 17.14 14.92C17.21 15.04 17.21 15.54 16.63 15.93Z" fill="currentColor"/>
-    </g>
-    <!-- Dashboard / Grid -->
-    <g id="icon-dashboard"><rect x="3" y="3" width="7" height="9" rx="1"/><rect x="14" y="3" width="7" height="5" rx="1"/><rect x="14" y="12" width="7" height="9" rx="1"/><rect x="3" y="16" width="7" height="5" rx="1"/></g>
-    <!-- Smartphone / Bot -->
-    <g id="icon-smartphone"><rect x="5" y="2" width="14" height="20" rx="2" ry="2"/><line x1="12" y1="18" x2="12.01" y2="18"/></g>
-    <!-- Send / Paperplane -->
-    <g id="icon-send"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></g>
-    <!-- Key -->
-    <g id="icon-key"><path d="M21 2l-2 2m-1.5 1.5L14 9l-2-2-4 4 2 2-3 3 2 2-2 2H3v-4l6-6 2 2 2-2-1.5-1.5L18 3l3-1z"/></g>
-    <!-- Sliders / Settings -->
-    <g id="icon-settings"><line x1="4" y1="21" x2="4" y2="14"/><line x1="4" y1="10" x2="4" y2="3"/><line x1="12" y1="21" x2="12" y2="12"/><line x1="12" y1="8" x2="12" y2="3"/><line x1="20" y1="21" x2="20" y2="16"/><line x1="20" y1="12" x2="20" y2="3"/><line x1="1" y1="14" x2="7" y2="14"/><line x1="9" y1="8" x2="15" y2="8"/><line x1="17" y1="16" x2="23" y2="16"/></g>
-    <!-- Book / Guide -->
-    <g id="icon-book"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></g>
-    <!-- Terminal / Logs -->
-    <g id="icon-terminal"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></g>
-    <!-- Copy -->
-    <g id="icon-copy"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></g>
-    <!-- Check -->
-    <g id="icon-check"><polyline points="20 6 9 17 4 12"/></g>
-    <!-- Refresh -->
-    <g id="icon-refresh"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></g>
-    <!-- Trash -->
-    <g id="icon-trash"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></g>
-    <!-- Power / Restart -->
-    <g id="icon-power"><path d="M18.36 6.64a9 9 0 1 1-12.73 0"/><line x1="12" y1="2" x2="12" y2="12"/></g>
-    <!-- Link Off / Unlink -->
-    <g id="icon-unlink"><path d="M18.84 12.25l1.72-1.71a4.5 4.5 0 0 0-6.36-6.36l-1.72 1.71"/><path d="M5.16 11.75l-1.72 1.71a4.5 4.5 0 0 0 6.36 6.36l1.72-1.71"/><line x1="2" y1="2" x2="22" y2="22"/></g>
-    <!-- Plus -->
-    <g id="icon-plus"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></g>
-    <!-- Logout -->
-    <g id="icon-logout"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></g>
-    <!-- Palette / Theme -->
-    <g id="icon-palette"><circle cx="13.5" cy="6.5" r=".5"/><circle cx="17.5" cy="10.5" r=".5"/><circle cx="8.5" cy="7.5" r=".5"/><circle cx="6.5" cy="12.5" r=".5"/><path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10c.926 0 1.648-.746 1.648-1.688 0-.437-.18-.835-.437-1.125-.29-.289-.438-.652-.438-1.125a1.64 1.64 0 0 1 1.668-1.668h1.996c3.051 0 5.563-2.512 5.563-5.563C22 6.5 17.5 2 12 2z"/></g>
-  </defs>
-</svg>
-
-<!-- ==================== LOGIN SCREEN ==================== -->
-<div id="loginView">
-  <div class="login-card">
-    <div class="login-logo">
-      <svg class="icon icon-xl"><use href="#icon-whatsapp"/></svg>
-    </div>
-    <h2 style="font-size:20px; font-weight:800; margin-bottom:4px;">OTP Bot Pro</h2>
-    <p style="font-size:13px; color:var(--tx-muted); margin-bottom:24px;">Admin Portal & Gateway Controller</p>
-
-    <div id="loginErr" style="display:none; padding:10px; border-radius:var(--radius-sm); background:var(--err-light); color:var(--err); font-size:12.5px; margin-bottom:16px;"></div>
-
-    <div class="form-group" style="text-align:left;">
-      <label class="form-label">Authentication Code / Password</label>
-      <input type="password" id="loginCodeInput" class="form-control" placeholder="Enter 6-digit code or password" autocomplete="current-password">
-    </div>
-
-    <div style="display:flex; flex-direction:column; gap:10px; margin-top:20px;">
-      <button class="btn btn-primary" onclick="doLogin()" style="width:100%;">
-        <svg class="icon"><use href="#icon-check"/></svg> Log In
-      </button>
-      <button class="btn btn-secondary" onclick="requestCode()" style="width:100%;">
-        <svg class="icon"><use href="#icon-send"/></svg> Request Verification Code
-      </button>
-    </div>
-    <p style="font-size:11px; color:var(--tx-muted); margin-top:16px;">Code will be printed in server terminal and ADMIN-CODE.txt</p>
+<!-- NAV -->
+<nav class="nav" id="nav" style="display:none">
+  <div class="nav-logo">💬 OTP Pro</div>
+  <div class="nav-tabs">
+    <button class="tab-btn active" onclick="switchTab('dashboard')">📊 Dashboard</button>
+    <button class="tab-btn" onclick="switchTab('bots')">📱 Bots</button>
+    <button class="tab-btn" onclick="switchTab('keys')">🔑 API Keys</button>
+    <button class="tab-btn" onclick="switchTab('settings')">⚙️ Settings</button>
+    <button class="tab-btn" onclick="switchTab('logs')">📋 Logs</button>
   </div>
-</div>
-
-<!-- ==================== AUTHENTICATED APP SHELL ==================== -->
-<div id="appShell" class="app-container" style="display:none;">
-
-  <!-- DESKTOP FIXED SIDEBAR -->
-  <aside class="sidebar">
-    <div class="sidebar-header">
-      <div class="brand-logo-wrap">
-        <svg class="icon icon-lg"><use href="#icon-whatsapp"/></svg>
-      </div>
-      <div class="brand-info">
-        <h1>OTP Bot Pro <span class="brand-badge">v2.0</span></h1>
-        <div class="brand-sub">
-          <span class="live-dot"></span> <span id="sidebarStatusText">Gateway Active</span>
-        </div>
-      </div>
-    </div>
-
-    <nav class="sidebar-nav">
-      <div class="nav-category">Main Controls</div>
-      <button class="nav-item active" onclick="switchTab('dashboard')">
-        <svg class="icon"><use href="#icon-dashboard"/></svg> Dashboard
-      </button>
-      <button class="nav-item" onclick="switchTab('bots')">
-        <svg class="icon"><use href="#icon-smartphone"/></svg> WhatsApp Bots
-        <span class="badge" id="navBotBadge">0</span>
-      </button>
-      <button class="nav-item" onclick="switchTab('chat')">
-        <svg class="icon"><use href="#icon-send"/></svg> Direct Chat
-      </button>
-      <button class="nav-item" onclick="switchTab('keys')">
-        <svg class="icon"><use href="#icon-key"/></svg> API Keys
-      </button>
-
-      <div class="nav-category" style="margin-top:10px;">Configuration</div>
-      <button class="nav-item" onclick="switchTab('settings')">
-        <svg class="icon"><use href="#icon-settings"/></svg> Gateway Settings
-      </button>
-      <button class="nav-item" onclick="switchTab('guide')">
-        <svg class="icon"><use href="#icon-book"/></svg> Guide (اردو / English)
-      </button>
-      <button class="nav-item" onclick="switchTab('logs')">
-        <svg class="icon"><use href="#icon-terminal"/></svg> Console & Logs
-      </button>
-    </nav>
-
-    <div class="sidebar-footer">
-      <div class="quick-links">
-        <a href="/app.html" target="_blank" class="quick-btn" title="Open Bank Demo App">
-          <svg class="icon icon-sm"><use href="#icon-smartphone"/></svg> Bank App
-        </a>
-        <a href="/index.html" target="_blank" class="quick-btn" title="Open Public Signup">
-          <svg class="icon icon-sm"><use href="#icon-check"/></svg> Signup
-        </a>
-      </div>
-      <div class="user-profile">
-        <div class="user-info">
-          <div class="user-avatar">A</div>
-          <div class="user-text">
-            <div class="user-name">Admin Session</div>
-            <div class="user-role" id="uptimeText">Uptime: 0m</div>
-          </div>
-        </div>
-        <button class="btn-icon-danger" onclick="doLogout()" title="Log Out">
-          <svg class="icon"><use href="#icon-logout"/></svg>
-        </button>
-      </div>
-    </div>
-  </aside>
-
-  <!-- MAIN WRAPPER -->
-  <div class="main-wrapper">
-
-    <!-- TOPBAR -->
-    <header class="topbar">
-      <div class="topbar-left">
-        <!-- Mobile Brand Icon -->
-        <div class="mobile-brand">
-          <div class="brand-logo-wrap" style="width:32px; height:32px;">
-            <svg class="icon"><use href="#icon-whatsapp"/></svg>
-          </div>
-          <span style="font-weight:700; font-size:15px;">OTP Bot Pro</span>
-        </div>
-        <div class="page-title" id="pageTitle">
-          <svg class="icon"><use href="#icon-dashboard"/></svg> Dashboard Overview
-        </div>
-      </div>
-
-      <div class="topbar-right">
-        <div class="status-pill online" id="topStatusPill">
-          <span class="live-dot"></span> <span id="topStatusText">System Ready</span>
-        </div>
-
-        <!-- Theme Picker -->
-        <div class="theme-picker" title="Switch Theme">
-          <button class="theme-dot active" onclick="setTheme('emerald')" title="Emerald Green">
-            <svg class="icon icon-sm"><use href="#icon-palette"/></svg>
-          </button>
-          <button class="theme-dot" onclick="setTheme('slate')" title="Tech Slate">
-            <svg class="icon icon-sm"><use href="#icon-palette"/></svg>
-          </button>
-          <button class="theme-dot" onclick="setTheme('midnight')" title="Midnight OLED">
-            <svg class="icon icon-sm"><use href="#icon-palette"/></svg>
-          </button>
-        </div>
-
-        <button class="btn-topbar" onclick="manualRefresh()" id="refreshBtn">
-          <svg class="icon icon-sm"><use href="#icon-refresh"/></svg> <span>Refresh</span>
-        </button>
-
-        <button class="btn-topbar" onclick="doLogout()" style="color:var(--err);" title="Log Out">
-          <svg class="icon icon-sm"><use href="#icon-logout"/></svg>
-        </button>
-      </div>
-    </header>
-
-    <!-- MAIN BODY CONTENT -->
-    <main class="page-content">
-
-      <!-- ==================== TAB 1: DASHBOARD ==================== -->
-      <section id="tab-dashboard" class="tab-section active">
-        <!-- Stats Row 1 -->
-        <div class="stats-grid">
-          <div class="stat-card c-primary">
-            <div>
-              <div class="stat-label">Total OTP Requests</div>
-              <div class="stat-val" id="stRequested">0</div>
-              <div class="stat-sub">Lifetime OTP calls</div>
-            </div>
-            <div class="stat-icon c-primary"><svg class="icon icon-lg"><use href="#icon-send"/></svg></div>
-          </div>
-          <div class="stat-card c-success">
-            <div>
-              <div class="stat-label">Delivered Successfully</div>
-              <div class="stat-val" id="stDelivered">0</div>
-              <div class="stat-sub" id="stDeliveryRate">100% success rate</div>
-            </div>
-            <div class="stat-icon c-success"><svg class="icon icon-lg"><use href="#icon-check"/></svg></div>
-          </div>
-          <div class="stat-card c-warn">
-            <div>
-              <div class="stat-label">Today's Total Sent</div>
-              <div class="stat-val" id="stTodaySent">0</div>
-              <div class="stat-sub" id="stDailyLimit">Limit: 500</div>
-            </div>
-            <div class="stat-icon c-warn"><svg class="icon icon-lg"><use href="#icon-dashboard"/></svg></div>
-          </div>
-          <div class="stat-card c-primary">
-            <div>
-              <div class="stat-label">Verified OTPs</div>
-              <div class="stat-val" id="stVerified">0</div>
-              <div class="stat-sub">Successful logins</div>
-            </div>
-            <div class="stat-icon c-primary"><svg class="icon icon-lg"><use href="#icon-key"/></svg></div>
-          </div>
-        </div>
-
-        <!-- Bots Overview Quick Strip -->
-        <div class="card">
-          <div class="card-header">
-            <div>
-              <div class="card-title"><svg class="icon"><use href="#icon-smartphone"/></svg> Active WhatsApp Accounts</div>
-              <div class="card-desc">Connected devices handling OTP traffic</div>
-            </div>
-            <button class="btn btn-primary btn-sm" onclick="showAddBotModal()">
-              <svg class="icon icon-sm"><use href="#icon-plus"/></svg> Add New Bot
-            </button>
-          </div>
-          <div id="dashBotsList" class="bot-cards-grid">
-            <!-- Rendered by JS -->
-          </div>
-        </div>
-
-        <!-- Recent Dispatches -->
-        <div class="card">
-          <div class="card-header">
-            <div class="card-title"><svg class="icon"><use href="#icon-send"/></svg> Recent Messages Activity</div>
-          </div>
-          <div class="table-responsive">
-            <table class="custom-table">
-              <thead>
-                <tr>
-                  <th>Message ID</th>
-                  <th>Recipient</th>
-                  <th>Bot Account</th>
-                  <th>Status</th>
-                  <th>Time Elapsed</th>
-                </tr>
-              </thead>
-              <tbody id="recentTbody">
-                <tr><td colspan="5" style="text-align:center; color:var(--tx-muted);">No messages logged yet</td></tr>
-              </tbody>
-            </table>
-          </div>
-        </div>
-      </section>
-
-      <!-- ==================== TAB 2: WHATSAPP BOTS ==================== -->
-      <section id="tab-bots" class="tab-section">
-        <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:20px; flex-wrap:wrap; gap:12px;">
-          <div>
-            <h2 style="font-size:20px; font-weight:800;">WhatsApp Accounts Management</h2>
-            <p style="font-size:13px; color:var(--tx-muted);">Manage multiple WhatsApp Personal & Business accounts for OTP sending & direct messaging</p>
-          </div>
-          <button class="btn btn-primary" onclick="showAddBotModal()">
-            <svg class="icon"><use href="#icon-plus"/></svg> Add WhatsApp Bot (+92)
-          </button>
-        </div>
-
-        <div id="botsContainer" class="bot-cards-grid">
-          <!-- Bot cards dynamically populated -->
-        </div>
-      </section>
-
-      <!-- ==================== TAB 3: DIRECT CHAT ==================== -->
-      <section id="tab-chat" class="tab-section">
-        <div style="margin-bottom:20px;">
-          <h2 style="font-size:20px; font-weight:800;">Direct WhatsApp Messenger</h2>
-          <p style="font-size:13px; color:var(--tx-muted);">Send custom messages directly from any connected bot to any WhatsApp user</p>
-        </div>
-
-        <div class="chat-layout">
-          <!-- Form -->
-          <div class="chat-send-card">
-            <div class="card-title" style="margin-bottom:18px;">
-              <svg class="icon"><use href="#icon-send"/></svg> Compose Custom Message
-            </div>
-
-            <div class="form-group">
-              <label class="form-label">Select Sender Bot Account</label>
-              <select id="chatBotSelect" class="form-control">
-                <!-- Populated dynamically -->
-              </select>
-            </div>
-
-            <div class="form-group">
-              <label class="form-label">Recipient Phone Number (Pakistan / International)</label>
-              <div class="phone-input-group">
-                <span class="phone-prefix-locked">
-                  <span class="phone-prefix-flag">🇵🇰</span> +92
-                </span>
-                <input type="tel" id="chatPhoneInput" class="phone-input-field" placeholder="3XXXXXXXXX" maxlength="10" autocomplete="off" oninput="sanitizePhone(this, 'chatPhonePreview')">
-              </div>
-              <div class="phone-helper-box">
-                <div class="phone-helper-ur">نمبر 3 سے شروع کریں (مثال: 3495031007) — شروع میں 0 نہ لکھیں</div>
-                <div class="phone-helper-en">Start with 3 (e.g. 3495031007) — leading 0 is not required.</div>
-              </div>
-              <div id="chatPhonePreview" class="phone-preview-badge" style="display:none;"></div>
-            </div>
-
-            <div class="form-group">
-              <label class="form-label">Message Content (Markdown Supported: *bold*, _italic_)</label>
-              <textarea id="chatMsgInput" class="form-control" rows="5" placeholder="Type your WhatsApp message here..." oninput="updateChatPreview()"></textarea>
-            </div>
-
-            <div style="display:flex; gap:10px; margin-top:20px;">
-              <button class="btn btn-primary" onclick="sendDirectMessage()" id="btnSendChat" style="flex:1;">
-                <svg class="icon"><use href="#icon-send"/></svg> Send WhatsApp Message
-              </button>
-            </div>
-            <div id="chatStatusResult" style="margin-top:14px; font-size:13px;"></div>
-          </div>
-
-          <!-- Live Preview -->
-          <div class="chat-preview-card">
-            <div class="card-title" style="margin-bottom:18px;">
-              <svg class="icon"><use href="#icon-smartphone"/></svg> WhatsApp Screen Preview
-            </div>
-            <div style="flex:1; background:url('data:image/svg+xml;utf8,<svg xmlns=\'http://www.w3.org/2000/svg\' width=\'40\' height=\'40\' viewBox=\'0 0 40 40\' opacity=\'0.04\'><path fill=\'%23ffffff\' d=\'M20 20 L40 40 M0 40 L40 0\'/></svg>'), #0c1317; border-radius:var(--radius-lg); border:1px solid var(--bd-color); padding:20px; display:flex; flex-direction:column; justify-content:flex-end;">
-              <div class="whatsapp-bubble-preview">
-                <div id="chatBubbleText">Your message preview will appear here in real-time as you type...</div>
-                <div class="bubble-time">
-                  <span id="chatPreviewTime">12:00 PM</span>
-                  <svg class="icon icon-sm" style="color:#53bdeb;"><use href="#icon-check"/></svg>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <!-- ==================== TAB 4: API KEYS ==================== -->
-      <section id="tab-keys" class="tab-section">
-        <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:20px; flex-wrap:wrap; gap:12px;">
-          <div>
-            <h2 style="font-size:20px; font-weight:800;">API Keys Management</h2>
-            <p style="font-size:13px; color:var(--tx-muted);">Secure access keys for external websites, apps, and microservices</p>
-          </div>
-          <button class="btn btn-primary" onclick="showGenerateKeyModal()">
-            <svg class="icon"><use href="#icon-plus"/></svg> Generate New API Key
-          </button>
-        </div>
-
-        <div class="card">
-          <div class="table-responsive">
-            <table class="custom-table">
-              <thead>
-                <tr>
-                  <th>Label</th>
-                  <th>Key Token</th>
-                  <th>Daily Limit</th>
-                  <th>Used Today</th>
-                  <th>Status</th>
-                  <th>Created</th>
-                  <th>Actions</th>
-                </tr>
-              </thead>
-              <tbody id="keysTbody">
-                <!-- Keys rows -->
-              </tbody>
-            </table>
-          </div>
-        </div>
-
-        <!-- Integration Code Examples -->
-        <div class="card" style="margin-top:24px;">
-          <div class="card-header">
-            <div class="card-title"><svg class="icon"><use href="#icon-terminal"/></svg> Integration Code Samples</div>
-          </div>
-          <div style="display:flex; gap:8px; margin-bottom:14px;">
-            <button class="btn btn-secondary btn-sm" onclick="showCodeSnippet('curl')">cURL</button>
-            <button class="btn btn-secondary btn-sm" onclick="showCodeSnippet('js')">JavaScript / Node.js</button>
-            <button class="btn btn-secondary btn-sm" onclick="showCodeSnippet('python')">Python</button>
-            <button class="btn btn-secondary btn-sm" onclick="showCodeSnippet('php')">PHP</button>
-          </div>
-          <div style="position:relative;">
-            <pre id="codeSnippetBox" style="background:var(--bg-input); padding:16px; border-radius:var(--radius-md); font-size:13px; overflow-x:auto; border:1px solid var(--bd-color); color:#38bdf8;"></pre>
-            <button class="btn btn-secondary btn-sm" onclick="copySnippet()" style="position:absolute; top:10px; right:10px;">
-              <svg class="icon icon-sm"><use href="#icon-copy"/></svg> Copy
-            </button>
-          </div>
-        </div>
-      </section>
-
-      <!-- ==================== TAB 5: SETTINGS ==================== -->
-      <section id="tab-settings" class="tab-section">
-        <div style="margin-bottom:20px;">
-          <h2 style="font-size:20px; font-weight:800;">Gateway Configuration & Security</h2>
-          <p style="font-size:13px; color:var(--tx-muted);">Fine-tune OTP lifetime, rate limits, templates, and whitelisting</p>
-        </div>
-
-        <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(340px, 1fr)); gap:20px;">
-          <!-- OTP Limits Card -->
-          <div class="card">
-            <div class="card-title" style="margin-bottom:16px;"><svg class="icon"><use href="#icon-settings"/></svg> Rate Limiting & TTL</div>
-
-            <div class="form-group">
-              <label class="form-label">OTP Lifetime / Expiry (Seconds)</label>
-              <input type="number" id="cfgOtpTtl" class="form-control" min="60" max="1800">
-              <span style="font-size:11px; color:var(--tx-muted);">Default: 300 seconds (5 minutes)</span>
-            </div>
-
-            <div class="form-group">
-              <label class="form-label">Resend Cooldown (Seconds)</label>
-              <input type="number" id="cfgCooldown" class="form-control" min="30" max="600">
-              <span style="font-size:11px; color:var(--tx-muted);">Minimum wait between consecutive OTP requests</span>
-            </div>
-
-            <div class="form-group">
-              <label class="form-label">Max OTPs / Hour (Global Limit)</label>
-              <input type="number" id="cfgMaxPerHour" class="form-control" min="1" max="500">
-            </div>
-
-            <div class="form-group">
-              <label class="form-label">Max Per IP / Hour</label>
-              <input type="number" id="cfgIpLimit" class="form-control" min="1" max="100">
-            </div>
-
-            <div class="form-group">
-              <label class="form-label">Daily Global OTP Limit</label>
-              <input type="number" id="cfgDailyLimit" class="form-control" min="1" max="100000">
-            </div>
-
-            <div class="form-group">
-              <label class="form-label">Warmup Delay for Newly Linked Bot (Seconds)</label>
-              <input type="number" id="cfgWarmup" class="form-control" min="0" max="300">
-            </div>
-          </div>
-
-          <!-- Message Template Card -->
-          <div class="card">
-            <div class="card-title" style="margin-bottom:16px;"><svg class="icon"><use href="#icon-send"/></svg> OTP Message Template</div>
-
-            <div class="form-group">
-              <label class="form-label">Message Format ({OTP} and {MINUTES} required)</label>
-              <textarea id="cfgMessage" class="form-control" rows="8"></textarea>
-            </div>
-
-            <button class="btn btn-secondary btn-sm" onclick="resetDefaultMsg()" style="margin-bottom:16px;">
-              Reset to Recommended Template
-            </button>
-
-            <!-- Test Mode & Allowed Numbers -->
-            <div class="card-title" style="margin-top:16px; margin-bottom:12px;"><svg class="icon"><use href="#icon-key"/></svg> Whitelist & Signup Mode</div>
-
-            <div class="form-group" style="display:flex; align-items:center; justify-content:space-between;">
-              <span class="form-label" style="margin:0;">Public Signup Page Enabled</span>
-              <input type="checkbox" id="cfgSignupEnabled" style="width:20px; height:20px; accent-color:var(--primary);">
-            </div>
-
-            <div class="form-group" style="display:flex; align-items:center; justify-content:space-between;">
-              <span class="form-label" style="margin:0;">Restrict to Allowed Numbers (Test Mode)</span>
-              <input type="checkbox" id="cfgRestrict" style="width:20px; height:20px; accent-color:var(--primary);">
-            </div>
-
-            <div class="form-group">
-              <label class="form-label">Allowed Whitelist Numbers (One per line)</label>
-              <textarea id="cfgAllowedNumbers" class="form-control" rows="4" placeholder="923495031007&#10;923001234567"></textarea>
-            </div>
-          </div>
-        </div>
-
-        <div style="margin-top:10px;">
-          <button class="btn btn-primary" onclick="saveSettings()">
-            <svg class="icon"><use href="#icon-check"/></svg> Save All Settings
-          </button>
-        </div>
-      </section>
-
-      <!-- ==================== TAB 6: BILINGUAL GUIDE ==================== -->
-      <section id="tab-guide" class="tab-section">
-        <div style="margin-bottom:20px;">
-          <h2 style="font-size:20px; font-weight:800;">Gateway Complete Guide & Documentation</h2>
-          <p style="font-size:13px; color:var(--tx-muted);">Comprehensive Bilingual Reference (اردو اور انگلش) covering every feature, setting, and workflow</p>
-        </div>
-
-        <div class="guide-tabs-bar">
-          <button class="guide-tab-btn active" onclick="filterGuide('all')">Side-by-Side (دونوں زبانیں)</button>
-          <button class="guide-tab-btn" onclick="filterGuide('ur')">اردو گائیڈ (Urdu Only)</button>
-          <button class="guide-tab-btn" onclick="filterGuide('en')">English Guide Only</button>
-        </div>
-
-        <div id="guideCardsContainer">
-          <!-- Guide Section 1 -->
-          <div class="guide-card">
-            <div class="guide-card-head" onclick="toggleGuide(this)">
-              <h4><svg class="icon"><use href="#icon-smartphone"/></svg> 1. Adding WhatsApp Bots & Linking via Pairing Code (نیا بوٹ ایڈ اور کنیکٹ کرنا)</h4>
-              <svg class="icon"><use href="#icon-plus"/></svg>
-            </div>
-            <div class="guide-card-body">
-              <div class="guide-col-en">
-                <h5>How WhatsApp Device Linking Works</h5>
-                <p>To connect a WhatsApp account (Personal or Business):</p>
-                <ol style="margin-left:18px; margin-top:8px;">
-                  <li>Click <strong>Add WhatsApp Bot</strong>.</li>
-                  <li>Enter the bot label (e.g. "Primary WhatsApp").</li>
-                  <li>The country code <strong>+92</strong> is locked. Enter the 10 digits starting with <strong>3</strong> (e.g. <code>3495031007</code>). Never enter a leading 0!</li>
-                  <li>Click <strong>Generate Pairing Code</strong>. You will receive an 8-character code formatted as <code>XXXX-XXXX</code>.</li>
-                  <li>On your phone, open <strong>WhatsApp > Settings > Linked Devices > Link with phone number</strong> and type the code.</li>
-                  <li>The bot connects within seconds and turns green (🟢 Ready).</li>
-                </ol>
-              </div>
-              <div class="guide-col-ur">
-                <h5>واٹس ایپ بوٹ کنیکٹ کرنے کا مکمل طریقہ</h5>
-                <p>نیا واٹس ایپ اکاؤنٹ (پرسنل یا بزنس) منسلک کرنے کے لیے:</p>
-                <ol style="margin-right:18px; margin-top:8px;">
-                  <li><strong>Add WhatsApp Bot</strong> کے بٹن پر کلک کریں۔</li>
-                  <li>بوٹ کا نام درج کریں (مثال: Main WhatsApp)۔</li>
-                  <li>کنٹری کوڈ <strong>+92</strong> پہلے سے لاک ہے۔ آپ نے نمبر <strong>3</strong> سے شروع کرنا ہے (مثال: <code>3495031007</code>)۔ شروع میں 0 ہرگز نہ لکھیں!</li>
-                  <li><strong>Generate Pairing Code</strong> پر کلک کریں۔ 8 ہندسوں کا کوڈ آئے گا جیسے <code>XXXX-XXXX</code>۔</li>
-                  <li>اپنے موبائل میں واٹس ایپ کھولیں > سیٹنگز > <strong>Linked Devices > Link with phone number</strong> میں جا کر یہ کوڈ درج کریں۔</li>
-                  <li>بوٹ فوری طور پر ایکٹو ہو جائے گا اور سبز (🟢 Ready) نشان آ جائے گا۔</li>
-                </ol>
-              </div>
-            </div>
-          </div>
-
-          <!-- Guide Section 2 -->
-          <div class="guide-card">
-            <div class="guide-card-head" onclick="toggleGuide(this)">
-              <h4><svg class="icon"><use href="#icon-send"/></svg> 2. Direct Chat & Custom Messages (براہِ راست میسجنگ فیچر)</h4>
-              <svg class="icon"><use href="#icon-plus"/></svg>
-            </div>
-            <div class="guide-card-body">
-              <div class="guide-col-en">
-                <h5>Direct Messaging Without OTP Logic</h5>
-                <p>The <strong>Direct Chat</strong> tab allows administrators to send custom WhatsApp messages from any linked bot directly to any mobile number:</p>
-                <ul style="margin-left:18px; margin-top:8px;">
-                  <li>Select which connected bot account should send the message.</li>
-                  <li>Enter the recipient Pakistani number starting with 3 (locked +92 prefix).</li>
-                  <li>Type custom text with WhatsApp markdown (*bold*, _italic_, ~strike~, ```code```).</li>
-                  <li>The message is sent immediately and tracked with delivery receipt confirmation.</li>
-                </ul>
-              </div>
-              <div class="guide-col-ur">
-                <h5>بغیر او ٹی پی کے براہِ راست پیغام بھیجنا</h5>
-                <p><strong>Direct Chat</strong> ٹیب کے ذریعے آپ کسی بھی جڑے ہوئے بوٹ سے کسی بھی نمبر پر اپنی مرضی کا میسج بھیج سکتے ہیں:</p>
-                <ul style="margin-right:18px; margin-top:8px;">
-                  <li>منتخب کریں کہ کس بوٹ کے نمبر سے میسج بھیجنا ہے۔</li>
-                  <li>وصول کنندہ کا پاکستانی نمبر 3 سے شروع کر کے لکھیں۔</li>
-                  <li>میسج ٹائپ کریں اور بولڈ یا اٹیلک فارمیٹنگ استعمال کر سکتے ہیں۔</li>
-                  <li>میسج فوری چلا جائے گا اور ایڈمن پینل میں ڈلیوری کی تصدیق مل جائے گی۔</li>
-                </ul>
-              </div>
-            </div>
-          </div>
-
-          <!-- Guide Section 3 -->
-          <div class="guide-card">
-            <div class="guide-card-head" onclick="toggleGuide(this)">
-              <h4><svg class="icon"><use href="#icon-settings"/></svg> 3. Gateway Settings & Security Parameters (تمام سیٹنگز کی تفصیلی وضاحت)</h4>
-              <svg class="icon"><use href="#icon-plus"/></svg>
-            </div>
-            <div class="guide-card-body">
-              <div class="guide-col-en">
-                <h5>Explanation of Each Configuration Field</h5>
-                <ul style="margin-left:18px; line-height:1.7;">
-                  <li><strong>OTP Lifetime (sec):</strong> How long the 6-digit code remains valid before expiring (Default: 300s = 5 mins).</li>
-                  <li><strong>Resend Cooldown (sec):</strong> Minimum seconds a user must wait before requesting another OTP (Default: 60s).</li>
-                  <li><strong>Max OTPs / Hour (Global):</strong> Maximum total OTPs the gateway will send per hour to prevent account flagging.</li>
-                  <li><strong>Max Per IP / Hour:</strong> Rate limit per IP address to block bots and brute-force attacks (Default: 10).</li>
-                  <li><strong>Daily Global OTP Limit:</strong> Maximum OTP dispatches allowed across the whole gateway per calendar day.</li>
-                  <li><strong>Warmup Delay (sec):</strong> Delay after linking a new bot before it begins processing live OTP queues.</li>
-                  <li><strong>Test Mode (Restrict to Allowed):</strong> When checked, OTPs will ONLY be sent to numbers in the whitelist.</li>
-                </ul>
-              </div>
-              <div class="guide-col-ur">
-                <h5>سیٹنگز کے تمام آپشنز کی آسان وضاحت</h5>
-                <ul style="margin-right:18px; line-height:2.1;">
-                  <li><strong>او ٹی پی کی میعاد (OTP Lifetime):</strong> وہ وقت جس کے بعد او ٹی پی ضائع ہو جاتا ہے (ڈیفالٹ: 300 سیکنڈ یعنی 5 منٹ)۔</li>
-                  <li><strong>دوبارہ بھیجنے کا وقفہ (Cooldown):</strong> ایک بار کوڈ مانگنے کے بعد دوبارہ مانگنے کے درمیان لازمی وقفہ (ڈیفالٹ: 60 سیکنڈ)۔</li>
-                  <li><strong>فی گھنٹہ حد (Max Per Hour):</strong> واٹس ایپ اکاؤنٹ کو محفوظ رکھنے کے لیے فی گھنٹہ زیادہ سے زیادہ پیغامات کی حد۔</li>
-                  <li><strong>آئی پی لمٹ (Max Per IP):</strong> ایک ہی انٹرنیٹ کنکشن یا موبائل سے بار بار جعلی حملوں کو روکنے کے لیے حد۔</li>
-                  <li><strong>یومیہ حد (Daily Limit):</strong> 24 گھنٹوں میں تمام بوٹس سے کل بھیجے جانے والے او ٹی پی کی زیادہ سے زیادہ حد۔</li>
-                  <li><strong>وارم اپ تاخیر (Warmup):</strong> نیا بوٹ لنک ہوتے ہی فوراً لوڈ نہ ڈالیں بلکہ کچھ سیکنڈ وارم اپ ہونے دیں۔</li>
-                  <li><strong>ٹیسٹ موڈ (Test Mode):</strong> اسے آن کرنے پر صرف ان نمبرز پر او ٹی پی جائے گا جو وائٹ لسٹ میں لکھے ہوں گے۔</li>
-                </ul>
-              </div>
-            </div>
-          </div>
-
-          <!-- Guide Section 4 -->
-          <div class="guide-card">
-            <div class="guide-card-head" onclick="toggleGuide(this)">
-              <h4><svg class="icon"><use href="#icon-key"/></svg> 4. API Keys & Integration Guide (ویب سائٹ یا ایپ میں جوڑنے کا طریقہ)</h4>
-              <svg class="icon"><use href="#icon-plus"/></svg>
-            </div>
-            <div class="guide-card-body">
-              <div class="guide-col-en">
-                <h5>Connecting to External Systems</h5>
-                <p>Every website, PHP script, Python backend, or mobile app connects using the <strong>x-api-key</strong> header:</p>
-                <ul style="margin-left:18px; margin-top:8px;">
-                  <li>Endpoint for sending OTP: <code>POST /api/v1/send-otp</code></li>
-                  <li>Payload: <code>{"number": "923495031007"}</code></li>
-                  <li>Verification Endpoint: <code>POST /api/v1/verify-otp</code></li>
-                  <li>Payload: <code>{"number": "923495031007", "otp": "123456"}</code></li>
-                </ul>
-              </div>
-              <div class="guide-col-ur">
-                <h5>اپنی ویب سائٹ یا موبائل ایپ میں جوڑنے کا طریقہ</h5>
-                <p>اپنی کسی بھی ویب سائٹ، ایچ ٹی ایم ایل فارم، یا پی ایچ پی کوڈ میں سرور جوڑنے کا طریقہ:</p>
-                <ul style="margin-right:18px; margin-top:8px;">
-                  <li>او ٹی پی بھیجنے کی اے پی آئی: <code>POST /api/v1/send-otp</code></li>
-                  <li>ہیڈر میں اپنی خفیہ کی بھیجیں: <code>x-api-key: YOUR_KEY</code></li>
-                  <li>تصدیق کرنے کی اے پی آئی: <code>POST /api/v1/verify-otp</code></li>
-                  <li>نمبر اور صارف کا لکھا ہوا 6 ہندسوں کا کوڈ بھیجیں، سسٹم فوراً تصدیق کر دے گا۔</li>
-                </ul>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <!-- ==================== TAB 7: LOGS & CONSOLE ==================== -->
-      <section id="tab-logs" class="tab-section">
-        <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:20px; flex-wrap:wrap; gap:12px;">
-          <div>
-            <h2 style="font-size:20px; font-weight:800;">System Console & Live Logs</h2>
-            <p style="font-size:13px; color:var(--tx-muted);">Real-time runtime diagnosis, WhatsApp socket events, and error ring buffer</p>
-          </div>
-          <button class="btn btn-secondary btn-sm" onclick="clearConsoleErrors()">
-            <svg class="icon icon-sm"><use href="#icon-trash"/></svg> Clear Error Log
-          </button>
-        </div>
-
-        <div class="card">
-          <div class="card-title" style="margin-bottom:12px;"><svg class="icon"><use href="#icon-terminal"/></svg> Real-Time Execution Log</div>
-          <pre id="liveLogTerminal" style="background:var(--bg-input); padding:16px; border-radius:var(--radius-md); font-size:12.5px; height:420px; overflow-y:auto; border:1px solid var(--bd-color); color:#a5f3fc; line-height:1.6;"></pre>
-        </div>
-      </section>
-
-    </main>
-
-    <!-- ANDROID NATIVE BOTTOM NAVIGATION -->
-    <nav class="bottom-nav">
-      <div class="bottom-nav-inner">
-        <button class="b-nav-item active" onclick="switchTab('dashboard')">
-          <div class="b-nav-icon-wrap"><svg class="icon"><use href="#icon-dashboard"/></svg></div>
-          <span>Overview</span>
-        </button>
-        <button class="b-nav-item" onclick="switchTab('bots')">
-          <div class="b-nav-icon-wrap"><svg class="icon"><use href="#icon-smartphone"/></svg></div>
-          <span>Bots</span>
-        </button>
-        <button class="b-nav-item" onclick="switchTab('chat')">
-          <div class="b-nav-icon-wrap"><svg class="icon"><use href="#icon-send"/></svg></div>
-          <span>Chat</span>
-        </button>
-        <button class="b-nav-item" onclick="switchTab('keys')">
-          <div class="b-nav-icon-wrap"><svg class="icon"><use href="#icon-key"/></svg></div>
-          <span>Keys</span>
-        </button>
-        <button class="b-nav-item" onclick="switchTab('settings')">
-          <div class="b-nav-icon-wrap"><svg class="icon"><use href="#icon-settings"/></svg></div>
-          <span>Config</span>
-        </button>
-        <button class="b-nav-item" onclick="switchTab('guide')">
-          <div class="b-nav-icon-wrap"><svg class="icon"><use href="#icon-book"/></svg></div>
-          <span>Guide</span>
-        </button>
-      </div>
-    </nav>
-
+  <div class="nav-right">
+    <a href="/app.html" target="_blank" style="text-decoration:none;padding:6px 12px;border:1px solid rgba(37,211,102,.4);background:rgba(37,211,102,.1);color:var(--ac);border-radius:8px;font-size:12px;font-weight:600">📱 Open Demo App</a>
+    <span id="ovPill" class="pill">...</span>
+    <button id="logoutBtn">Logout</button>
   </div>
-</div>
+</nav>
 
-<!-- ==================== GENERIC MODAL ==================== -->
-<div id="appModal" class="modal-overlay">
-  <div class="modal-box">
-    <div class="modal-header">
-      <h3 id="modalTitle">Modal Title</h3>
-      <button class="btn-icon-danger" onclick="hideModal()"><svg class="icon"><use href="#icon-plus" style="transform:rotate(45deg);"/></svg></button>
+<!-- ===== LOGIN ===== -->
+<div id="loginView" style="display:flex;align-items:center;justify-content:center;min-height:100vh;padding:20px">
+  <div style="width:100%;max-width:380px">
+    <div style="text-align:center;margin-bottom:24px">
+      <div style="font-size:48px;margin-bottom:8px">💬</div>
+      <div style="font-size:22px;font-weight:800;color:var(--ac)">OTP Bot Pro</div>
+      <div style="color:var(--mut);font-size:14px;margin-top:4px">Admin Panel</div>
     </div>
-    <div class="modal-body" id="modalBody">
-      <!-- Injected -->
-    </div>
-    <div class="modal-footer" id="modalFooter">
-      <!-- Injected -->
+    <div class="card">
+      <p class="mut" style="margin-bottom:14px;line-height:1.6">
+        1) Press <b>Request Code</b><br>
+        2) A 6-digit code appears in the server console<br>
+        3) Enter it below to login
+      </p>
+      <button class="p" id="reqCode" style="width:100%;margin-bottom:14px">Request Code</button>
+      <label class="lbl">Verification Code (or Admin Password)</label>
+      <input id="codeIn" type="password" autocomplete="one-time-code" placeholder="6-digit code" style="text-align:center;font-size:20px;letter-spacing:4px">
+      <button class="p" id="doLogin" style="width:100%;margin-top:12px">Log In</button>
+      <p id="loginMsg" class="mut" style="margin-top:10px;text-align:center"></p>
     </div>
   </div>
 </div>
 
-<!-- TOAST CONTAINER -->
-<div id="toastContainer" class="toast-container"></div>
+<!-- ===== DASHBOARD ===== -->
+<div class="page active" id="page-dashboard">
+  <div class="card">
+    <div class="card-row">
+      <div>
+        <div style="font-size:18px;font-weight:700">Dashboard</div>
+        <div class="mut" id="dashMeta"></div>
+      </div>
+      <span id="dashErr" class="mut" style="color:var(--err);font-size:13px;max-width:60%;text-align:right"></span>
+    </div>
+    <div class="grid4" style="margin-top:8px">
+      <div class="stat info"><b id="sReq">0</b><span>Requests</span></div>
+      <div class="stat ok"><b id="sAcc">0</b><span>Accepted</span></div>
+      <div class="stat ok"><b id="sDel">0</b><span>Delivered</span></div>
+      <div class="stat err"><b id="sFail">0</b><span>Failed</span></div>
+    </div>
+    <div class="grid4" style="margin-top:8px">
+      <div class="stat warn"><b id="sToday">0</b><span>Today's Sends</span></div>
+      <div class="stat"><b id="sDayLim">500</b><span>Daily Limit</span></div>
+      <div class="stat ok"><b id="sVer">0</b><span>Verified</span></div>
+      <div class="stat"><b id="sUnd">0</b><span>Unconfirmed</span></div>
+    </div>
+  </div>
 
-<!-- ==================== JAVASCRIPT LOGIC ==================== -->
-<script>
-let token = sessionStorage.getItem('admin_token') || '';
-let activeTab = 'dashboard';
-let lastState = null;
-let refreshTimer = null;
-let selectedSnippetLang = 'curl';
+  <!-- Mini bot cards -->
+  <div class="card">
+    <div class="card-row">
+      <h2 style="margin:0">WhatsApp Bots</h2>
+      <button class="sm p" onclick="switchTab('bots')">Manage →</button>
+    </div>
+    <div id="dashBots"></div>
+  </div>
 
-// Theme Initialization
-function setTheme(theme) {
-  document.documentElement.setAttribute('data-theme', theme);
-  localStorage.setItem('admin_theme', theme);
-  document.querySelectorAll('.theme-dot').forEach(el => el.classList.remove('active'));
-  const btn = document.querySelector(`.theme-dot[onclick*="${theme}"]`);
-  if (btn) btn.classList.add('active');
-}
-const savedTheme = localStorage.getItem('admin_theme') || 'emerald';
-setTheme(savedTheme);
+  <!-- Recent messages -->
+  <div class="card">
+    <h2>Recent Messages</h2>
+    <div style="overflow-x:auto">
+      <table>
+        <thead><tr><th>ID</th><th>To</th><th>Bot</th><th>Status</th><th>Age</th></tr></thead>
+        <tbody id="recentTbl"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
 
-// Toast System
-function toast(msg, type = 'info') {
-  const c = document.getElementById('toastContainer');
-  const t = document.createElement('div');
-  t.className = `toast t-${type}`;
-  const icon = type === 'ok' ? '#icon-check' : (type === 'err' ? '#icon-unlink' : '#icon-send');
-  t.innerHTML = `<svg class="icon"><use href="${icon}"/></svg> <span>${msg}</span>`;
-  c.appendChild(t);
-  setTimeout(() => { t.style.opacity = '0'; setTimeout(() => t.remove(), 250); }, 3500);
-}
+<!-- ===== BOTS ===== -->
+<div class="page" id="page-bots">
+  <div class="card-row" style="padding:0 0 12px">
+    <div style="font-size:18px;font-weight:700">📱 WhatsApp Bots</div>
+    <button class="p" onclick="showAddBotModal()">+ Add Bot</button>
+  </div>
+  <p class="mut" style="margin-bottom:14px">Each bot = one WhatsApp account. You can connect multiple accounts for load balancing.</p>
+  <div id="botsContainer"></div>
+</div>
 
-// Modal Helpers
-function showModal(title, html, footerBtns = []) {
-  document.getElementById('modalTitle').textContent = title;
-  document.getElementById('modalBody').innerHTML = html;
-  const f = document.getElementById('modalFooter');
-  f.innerHTML = '';
-  footerBtns.forEach(b => {
-    const btn = document.createElement('button');
-    btn.className = `btn ${b.cls || 'btn-secondary'}`;
-    btn.innerHTML = b.text;
-    btn.onclick = () => { if (typeof b.fn === 'function') b.fn(); else if (window[b.fn]) window[b.fn](); };
-    f.appendChild(btn);
+<!-- ===== API KEYS ===== -->
+<div class="page" id="page-keys">
+  <div class="card">
+    <div class="card-row">
+      <h2 style="margin:0">🔑 API Keys</h2>
+      <button class="p" onclick="showGenKeyModal()">+ Generate Key</button>
+    </div>
+    <div style="overflow-x:auto">
+      <table>
+        <thead>
+          <tr><th>Label</th><th>Key</th><th>Daily Limit</th><th>Used Today</th><th>Status</th><th>Actions</th></tr>
+        </thead>
+        <tbody id="keysTbl"></tbody>
+      </table>
+    </div>
+    <p id="noKeys" class="mut" style="text-align:center;padding:20px">No API keys yet. Generate one to integrate with your app.</p>
+  </div>
+
+  <!-- Integration Guide -->
+  <div class="card">
+    <h2>🔗 Integration Guide</h2>
+    <label class="lbl">Base URL (your server's public address)</label>
+    <div class="url-box">
+      <span class="url-text" id="baseUrlDisp">Loading...</span>
+      <button class="sm" onclick="copyText(document.getElementById('baseUrlDisp').textContent, this)">Copy</button>
+    </div>
+
+    <div class="sep"></div>
+    <h2>API Endpoints</h2>
+
+    <div class="int-section">
+      <h3>1. Send OTP</h3>
+      <div class="code-block">
+        <button class="sm copy-btn" onclick="copyBlock(this)">Copy</button>
+        <pre>POST {BASE_URL}/api/v1/send-otp
+Headers:
+  x-api-key: YOUR_API_KEY
+  Content-Type: application/json
+Body:
+  {"number": "03XXXXXXXXX"}</pre>
+      </div>
+      <div class="mut">Response: <code>{"ok":true,"number":"923XXXXXXXXX","state":"sent"}</code></div>
+    </div>
+
+    <div class="int-section">
+      <h3>2. Verify OTP</h3>
+      <div class="code-block">
+        <button class="sm copy-btn" onclick="copyBlock(this)">Copy</button>
+        <pre>POST {BASE_URL}/api/v1/verify-otp
+Headers:
+  x-api-key: YOUR_API_KEY
+  Content-Type: application/json
+Body:
+  {"number": "03XXXXXXXXX", "otp": "123456"}</pre>
+      </div>
+      <div class="mut">Response: <code>{"ok":true,"message":"Verified"}</code></div>
+    </div>
+
+    <div class="int-section">
+      <h3>3. Gateway Status</h3>
+      <div class="code-block">
+        <button class="sm copy-btn" onclick="copyBlock(this)">Copy</button>
+        <pre>GET {BASE_URL}/api/v1/status
+Headers:
+  x-api-key: YOUR_API_KEY</pre>
+      </div>
+    </div>
+
+    <div class="sep"></div>
+    <h2>Code Snippets</h2>
+    <div class="snippet-tabs">
+      <button class="snippet-tab active" onclick="showSnippet('js',this)">JavaScript</button>
+      <button class="snippet-tab" onclick="showSnippet('py',this)">Python</button>
+      <button class="snippet-tab" onclick="showSnippet('php',this)">PHP</button>
+    </div>
+    <div id="snip-js" class="code-block">
+      <button class="sm copy-btn" onclick="copyBlock(this)">Copy</button>
+      <pre>const OTP_BASE = 'YOUR_BASE_URL';
+const OTP_KEY  = 'YOUR_API_KEY';
+
+async function sendOTP(phone) {
+  const res = await fetch(`${OTP_BASE}/api/v1/send-otp`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'x-api-key': OTP_KEY
+    },
+    body: JSON.stringify({ number: phone })
   });
-  document.getElementById('appModal').classList.add('active');
-}
-function hideModal() {
-  document.getElementById('appModal').classList.remove('active');
+  return res.json();
 }
 
-// API Fetch Helper
-async function api(endpoint, method = 'GET', body = null) {
-  const headers = { 'Content-Type': 'application/json' };
-  if (token) headers['Authorization'] = `Bearer ${token}`;
-  const opt = { method, headers };
-  if (body) opt.body = JSON.stringify(body);
-  try {
-    const res = await fetch(endpoint, opt);
-    if (res.status === 401) {
-      token = '';
-      sessionStorage.removeItem('admin_token');
-      showLogin();
-      throw new Error('Session expired');
-    }
-    const data = await res.json();
-    return data;
-  } catch(e) {
-    if (e.message !== 'Session expired') console.warn('API error:', e.message);
-    throw e;
-  }
-}
-
-// Tab Switching
-function switchTab(name) {
-  activeTab = name;
-  document.querySelectorAll('.tab-section').forEach(s => s.classList.remove('active'));
-  const target = document.getElementById(`tab-${name}`);
-  if (target) target.classList.add('active');
-
-  // Sidebar links
-  document.querySelectorAll('.sidebar-nav .nav-item').forEach(btn => {
-    const onclickStr = btn.getAttribute('onclick') || '';
-    btn.classList.toggle('active', onclickStr.includes(`'${name}'`));
+async function verifyOTP(phone, otp) {
+  const res = await fetch(`${OTP_BASE}/api/v1/verify-otp`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'x-api-key': OTP_KEY
+    },
+    body: JSON.stringify({ number: phone, otp })
   });
-
-  // Android Bottom nav items
-  document.querySelectorAll('.bottom-nav .b-nav-item').forEach(btn => {
-    const onclickStr = btn.getAttribute('onclick') || '';
-    btn.classList.toggle('active', onclickStr.includes(`'${name}'`));
-  });
-
-  // Update Page Title
-  const titles = {
-    dashboard: '<svg class="icon"><use href="#icon-dashboard"/></svg> Dashboard Overview',
-    bots: '<svg class="icon"><use href="#icon-smartphone"/></svg> WhatsApp Accounts',
-    chat: '<svg class="icon"><use href="#icon-send"/></svg> Direct Chat Messenger',
-    keys: '<svg class="icon"><use href="#icon-key"/></svg> API Access Keys',
-    settings: '<svg class="icon"><use href="#icon-settings"/></svg> Gateway Configuration',
-    guide: '<svg class="icon"><use href="#icon-book"/></svg> Complete Bilingual Guide',
-    logs: '<svg class="icon"><use href="#icon-terminal"/></svg> Console & Logs'
-  };
-  document.getElementById('pageTitle').innerHTML = titles[name] || 'Admin Portal';
-  window.scrollTo({ top: 0, behavior: 'smooth' });
+  return res.json();
 }
 
-// Authentication
-async function requestCode() {
-  toast('Requesting code from terminal...', 'info');
-  try {
-    const r = await api('/api/admin/request-code', 'POST');
-    if (r.ok) toast('Verification code generated in terminal & ADMIN-CODE.txt', 'ok');
-    else toast(r.error || 'Failed to request code', 'err');
-  } catch(e) { toast('Error requesting code', 'err'); }
-}
+// Usage:
+// const result = await sendOTP('03001234567');
+// const verified = await verifyOTP('03001234567', '123456');</pre>
+    </div>
+    <div id="snip-py" class="code-block hide">
+      <button class="sm copy-btn" onclick="copyBlock(this)">Copy</button>
+      <pre>import requests
 
-async function doLogin() {
-  const code = document.getElementById('loginCodeInput').value.trim();
-  if (!code) return toast('Please enter code or password', 'err');
-  try {
-    const r = await api('/api/admin/login', 'POST', { code });
-    if (r.ok && r.token) {
-      token = r.token;
-      sessionStorage.setItem('admin_token', token);
-      showApp();
-      toast('Login successful!', 'ok');
-    } else {
-      toast(r.error || 'Invalid credentials', 'err');
-    }
-  } catch(e) { toast(e.message || 'Login failed', 'err'); }
-}
+OTP_BASE = 'YOUR_BASE_URL'
+OTP_KEY  = 'YOUR_API_KEY'
 
-async function doLogout() {
-  try { await api('/api/admin/logout-session', 'POST'); } catch {}
-  token = '';
-  sessionStorage.removeItem('admin_token');
-  showLogin();
-  toast('Logged out safely', 'info');
-}
+def send_otp(phone):
+    r = requests.post(f'{OTP_BASE}/api/v1/send-otp',
+        headers={'x-api-key': OTP_KEY},
+        json={'number': phone})
+    return r.json()
 
-function showLogin() {
-  clearInterval(refreshTimer);
-  document.getElementById('appShell').style.display = 'none';
-  document.getElementById('loginView').style.display = 'flex';
-}
+def verify_otp(phone, otp):
+    r = requests.post(f'{OTP_BASE}/api/v1/verify-otp',
+        headers={'x-api-key': OTP_KEY},
+        json={'number': phone, 'otp': otp})
+    return r.json()
 
-function showApp() {
-  document.getElementById('loginView').style.display = 'none';
-  document.getElementById('appShell').style.display = 'flex';
-  refreshData();
-  clearInterval(refreshTimer);
-  refreshTimer = setInterval(refreshData, 3000);
-}
+# Usage:
+# result = send_otp('03001234567')
+# verified = verify_otp('03001234567', '123456')</pre>
+    </div>
+    <div id="snip-php" class="code-block hide">
+      <button class="sm copy-btn" onclick="copyBlock(this)">Copy</button>
+      <pre>&lt;?php
+define('OTP_BASE', 'YOUR_BASE_URL');
+define('OTP_KEY',  'YOUR_API_KEY');
 
-// ==================== PHONE INPUT SANITIZER (+92 LOCKED) ====================
-function sanitizePhone(input, previewId) {
-  let val = input.value.replace(/\D/g, ''); // Digits only
-  // Strip leading 0 if pasted
-  if (val.startsWith('0')) val = val.slice(1);
-  // Strip 92 or 0092 if pasted
-  if (val.startsWith('92')) val = val.slice(2);
-  // Max 10 digits
-  if (val.length > 10) val = val.slice(0, 10);
-  input.value = val;
-
-  const preview = document.getElementById(previewId);
-  if (preview) {
-    if (val.length >= 3) {
-      preview.style.display = 'inline-flex';
-      preview.innerHTML = `<svg class="icon icon-sm"><use href="#icon-check"/></svg> Full International: <strong>+92 ${val}</strong>`;
-    } else {
-      preview.style.display = 'none';
-    }
-  }
-}
-
-// ==================== DATA REFRESH & STATE ====================
-async function refreshData() {
-  if (!token) return;
-  try {
-    const [state, cons] = await Promise.all([
-      api('/api/admin/state').catch(() => null),
-      api('/api/admin/console').catch(() => null)
+function sendOTP($phone) {
+    $ch = curl_init(OTP_BASE . '/api/v1/send-otp');
+    curl_setopt_array($ch, [
+        CURLOPT_POST => true,
+        CURLOPT_RETURNTRANSFER => true,
+        CURLOPT_HTTPHEADER => [
+            'Content-Type: application/json',
+            'x-api-key: ' . OTP_KEY
+        ],
+        CURLOPT_POSTFIELDS => json_encode(['number' => $phone])
     ]);
-    if (!state || !state.ok) return;
-    lastState = state;
-
-    // Top status pill
-    const ready = state.ready;
-    const topPill = document.getElementById('topStatusPill');
-    const topText = document.getElementById('topStatusText');
-    topPill.className = `status-pill ${ready ? 'online' : 'offline'}`;
-    topText.textContent = ready ? 'Gateway Active (Ready)' : 'Waiting for Bot Link';
-
-    // Sidebar status
-    document.getElementById('sidebarStatusText').textContent = ready ? 'Ready for OTPs' : 'No Bot Linked';
-    document.getElementById('navBotBadge').textContent = state.bots?.length || 0;
-    document.getElementById('uptimeText').textContent = `Uptime: ${fmtUptime(state.uptime)}`;
-
-    // Dashboard stats
-    document.getElementById('stRequested').textContent = state.stats?.requested || 0;
-    document.getElementById('stDelivered').textContent = state.stats?.delivered || 0;
-    const req = state.stats?.requested || 0;
-    const del = state.stats?.delivered || 0;
-    const rate = req > 0 ? Math.round((del / req) * 100) : 100;
-    document.getElementById('stDeliveryRate').textContent = `${rate}% delivery rate`;
-    document.getElementById('stTodaySent').textContent = state.dailyGlobal?.count || 0;
-    document.getElementById('stDailyLimit').textContent = `Limit: ${state.settings?.dailyLimit || 500}`;
-    document.getElementById('stVerified').textContent = state.stats?.verified || 0;
-
-    // Render Bots
-    renderBots(state.bots || []);
-
-    // Render Recent
-    renderRecent(state.recent || []);
-
-    // Render Keys if active
-    if (activeTab === 'keys') renderKeys(state.apiKeys || []);
-
-    // Render Settings once or on tab
-    if (activeTab === 'settings' && !window.settingsPopulated) {
-      populateSettings(state.settings || {});
-      window.settingsPopulated = true;
-    }
-
-    // Console logs
-    if (cons && cons.ok && document.getElementById('liveLogTerminal')) {
-      const el = document.getElementById('liveLogTerminal');
-      const lines = cons.logs || [];
-      el.textContent = lines.join('\n');
-    }
-  } catch(e) {
-    console.error('Refresh error:', e);
-  }
+    return json_decode(curl_exec($ch), true);
 }
 
-function manualRefresh() {
-  const btn = document.getElementById('refreshBtn');
-  btn.style.transform = 'rotate(180deg)';
-  setTimeout(() => btn.style.transform = 'none', 300);
-  refreshData();
-  toast('Refreshed gateway state', 'info');
+function verifyOTP($phone, $otp) {
+    $ch = curl_init(OTP_BASE . '/api/v1/verify-otp');
+    curl_setopt_array($ch, [
+        CURLOPT_POST => true,
+        CURLOPT_RETURNTRANSFER => true,
+        CURLOPT_HTTPHEADER => [
+            'Content-Type: application/json',
+            'x-api-key: ' . OTP_KEY
+        ],
+        CURLOPT_POSTFIELDS => json_encode(['number' => $phone, 'otp' => $otp])
+    ]);
+    return json_decode(curl_exec($ch), true);
+}
+?&gt;</pre>
+    </div>
+  </div>
+</div>
+
+<!-- ===== SETTINGS ===== -->
+<div class="page" id="page-settings">
+  <div class="grid2">
+    <div>
+      <div class="card">
+        <h2>⏱ OTP Settings</h2>
+        <label class="lbl">OTP Lifetime (seconds)</label>
+        <input id="fTtl" type="number" min="60" max="1800">
+        <label class="lbl">Resend Cooldown (seconds)</label>
+        <input id="fCd" type="number" min="30" max="600">
+        <label class="lbl">Max OTPs / Hour (global)</label>
+        <input id="fMax" type="number" min="1" max="500">
+        <label class="lbl">Daily OTP Limit</label>
+        <input id="fDay" type="number" min="1" max="10000">
+        <label class="lbl">Max per IP / Hour</label>
+        <input id="fIp" type="number" min="1" max="100">
+        <label class="lbl">New Link Warmup (seconds)</label>
+        <input id="fWarm" type="number" min="0" max="300">
+      </div>
+
+      <div class="card">
+        <h2>📝 WhatsApp Message</h2>
+        <p class="mut" style="margin-bottom:10px">Use <code>{OTP}</code> and <code>{MINUTES}</code> placeholders</p>
+        <textarea id="fMsg" style="min-height:160px;font-family:monospace;font-size:13px"></textarea>
+        <div style="display:flex;gap:8px;margin-top:10px">
+          <button onclick="resetMsg()" style="flex:1">Reset to Default</button>
+          <button onclick="previewMsg()" style="flex:1">Preview</button>
+        </div>
+        <div id="msgPreview" class="hide" style="margin-top:12px;background:rgba(37,211,102,.06);border:1px solid rgba(37,211,102,.2);border-radius:9px;padding:12px;font-size:13px;white-space:pre-wrap;font-family:monospace;color:#a8e6bb"></div>
+      </div>
+    </div>
+    <div>
+      <div class="card">
+        <h2>📋 Signup Page</h2>
+        <div class="sw">
+          <span class="sw-label">Enable Signup Page</span>
+          <label class="toggle"><input type="checkbox" id="fSignup"><span class="slider"></span></label>
+        </div>
+        <div class="sw">
+          <span class="sw-label">Test Mode (only allowed numbers)</span>
+          <label class="toggle"><input type="checkbox" id="fRestrict"><span class="slider"></span></label>
+        </div>
+        <label class="lbl">Allowed Numbers (one per line)</label>
+        <textarea id="fAllowed" placeholder="03XXXXXXXXX&#10;03XXXXXXXXX" style="min-height:80px"></textarea>
+      </div>
+
+      <div class="card">
+        <h2>🌐 Public Link / Tunnel</h2>
+        <label class="lbl">Current Public URL</label>
+        <div class="url-box" style="margin-bottom:10px">
+          <span class="url-text" id="pubUrlDisp">Not set</span>
+          <button class="sm" onclick="copyText(document.getElementById('pubUrlDisp').textContent, this)">Copy</button>
+        </div>
+        <div class="row" id="pubStatus">
+          <span id="pubPill" class="pill">checking</span>
+          <span class="mut" id="pubHelp"></span>
+        </div>
+        <div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap">
+          <button class="sm" onclick="checkPub()">Check Now</button>
+          <button class="sm" id="restartTunBtn" onclick="restartTun()" style="display:none">Restart Tunnel</button>
+        </div>
+        <div class="sw" style="margin-top:12px">
+          <span class="sw-label">Auto-restart when tunnel is dead</span>
+          <label class="toggle"><input type="checkbox" id="fWatch"><span class="slider"></span></label>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>🔒 Admin</h2>
+        <p class="mut" style="margin-bottom:10px">Set ADMIN_PASSWORD env variable (8+ chars) to skip console code login.</p>
+        <div id="pwInfo" class="mut"></div>
+      </div>
+    </div>
+  </div>
+  <div style="text-align:right;padding-bottom:16px">
+    <button class="p" style="padding:12px 32px;font-size:15px" onclick="saveSettings()">💾 Save Settings</button>
+  </div>
+</div>
+
+<!-- ===== LOGS ===== -->
+<div class="page" id="page-logs">
+  <div class="card">
+    <div class="card-row">
+      <h2 style="margin:0">❌ Error Console <span id="errBadge" class="pill">0</span></h2>
+      <button class="sm d" onclick="clearErrors()">Clear</button>
+    </div>
+    <div id="errContainer"><p class="mut">No errors.</p></div>
+  </div>
+  <div class="card">
+    <div class="card-row">
+      <h2 style="margin:0">📜 Live Log</h2>
+      <div style="display:flex;gap:6px">
+        <button class="sm" id="fAll" onclick="setFilter('all',this)">All</button>
+        <button class="sm" id="fErr" onclick="setFilter('error',this)">Errors</button>
+        <button class="sm" id="fWrn" onclick="setFilter('warn',this)">Warnings</button>
+      </div>
+    </div>
+    <div class="log-pre" id="logPre"></div>
+  </div>
+</div>
+
+<!-- ===== MODALS ===== -->
+<div class="modal-bg" id="modalBg" onclick="if(event.target===this)hideModal()">
+  <div class="modal" id="modalBox">
+    <h3 id="modalTitle"></h3>
+    <div id="modalBody"></div>
+    <div class="modal-btns" id="modalBtns"></div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+// ===== STATE =====
+let token = ''
+try { token = sessionStorage.getItem('otpbot_tok') || '' } catch(e){}
+let activeTab = 'dashboard'
+let lastState = null
+let settingsLoaded = false
+let timer = null
+let logFilter = 'all'
+
+// ===== HELPERS =====
+function toast(msg, type='info') {
+  const t = document.getElementById('toast')
+  t.textContent = msg
+  t.style.display = 'block'
+  t.style.color = type==='err' ? 'var(--err)' : type==='ok' ? 'var(--ac)' : 'var(--tx)'
+  clearTimeout(toast._t)
+  toast._t = setTimeout(() => t.style.display='none', 3500)
 }
 
-// ==================== BOTS RENDERING ====================
+function fmtDur(s) {
+  if (!s) return '0s'
+  const h = Math.floor(s/3600), m = Math.floor(s%3600/60)
+  if (h) return h+'h '+m+'m'
+  if (m) return m+'m '+(s%60)+'s'
+  return s+'s'
+}
+
+function fmtDate(ms) {
+  if (!ms) return '-'
+  return new Date(ms).toLocaleString('en-GB', {day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'})
+}
+
+function ago(ms) {
+  const s = Math.round((Date.now()-ms)/1000)
+  if (s < 60) return s+'s ago'
+  if (s < 3600) return Math.round(s/60)+'m ago'
+  return Math.round(s/3600)+'h ago'
+}
+
+function copyText(text, btn) {
+  navigator.clipboard.writeText(text).then(() => {
+    if (btn) { const o=btn.textContent; btn.textContent='✓'; setTimeout(()=>btn.textContent=o, 2000) }
+    toast('Copied!', 'ok')
+  }).catch(() => toast(text))
+}
+
+function copyBlock(btn) {
+  const pre = btn.closest('.code-block').querySelector('pre')
+  copyText(pre.textContent, btn)
+}
+
+// ===== API =====
+async function api(path, method='GET', body=null) {
+  try {
+    const r = await fetch(path, {
+      method,
+      headers: Object.assign({'Content-Type':'application/json'}, token ? {Authorization:'Bearer '+token} : {}),
+      body: body ? JSON.stringify(body) : undefined
+    })
+    if (r.status===401 && token) { token=''; try{sessionStorage.removeItem('otpbot_tok')}catch(e){}; showLogin(); throw new Error('session expired') }
+    return r.json()
+  } catch(e) { if (e.message !== 'session expired') console.warn('API error', path, e); throw e }
+}
+
+// ===== AUTH =====
+function showLogin() {
+  clearInterval(timer); timer=null
+  document.getElementById('loginView').style.display='flex'
+  document.getElementById('nav').style.display='none'
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'))
+}
+function showDash() {
+  document.getElementById('loginView').style.display='none'
+  document.getElementById('nav').style.display='flex'
+  settingsLoaded = false
+  switchTab('dashboard')
+  clearInterval(timer)
+  timer = setInterval(refresh, 3000)
+  refresh()
+}
+
+document.getElementById('reqCode').onclick = async () => {
+  const r = await api('/api/admin/request-code','POST').catch(()=>null)
+  document.getElementById('loginMsg').textContent = r?.ok ? 'Code printed in server console.' : (r?.error||'Error')
+}
+document.getElementById('doLogin').onclick = async () => {
+  const r = await api('/api/admin/login','POST',{code:document.getElementById('codeIn').value}).catch(()=>({ok:false,error:'Network error'}))
+  if (r.ok) { token=r.token; try{sessionStorage.setItem('otpbot_tok',token)}catch(e){}; showDash() }
+  else document.getElementById('loginMsg').textContent = r.error
+}
+document.getElementById('codeIn').addEventListener('keydown', e => { if(e.key==='Enter') document.getElementById('doLogin').click() })
+document.getElementById('logoutBtn').onclick = async () => {
+  try { await api('/api/admin/logout-session','POST') } catch(e){}
+  token=''; try{sessionStorage.removeItem('otpbot_tok')}catch(e){}; showLogin()
+}
+
+// ===== TAB SWITCHING =====
+function switchTab(name) {
+  activeTab = name
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.toggle('active', b.textContent.toLowerCase().includes(name.split('-')[0])))
+  document.querySelectorAll('.page').forEach(p => p.classList.toggle('active', p.id==='page-'+name))
+  refresh()
+}
+
+// ===== RENDER STATUS NAMES =====
+const STATUS_NAMES = {starting:'Starting',qr:'Waiting for link',open:'Online',closed:'Reconnecting',loggedout:'Logged out',idle:'Idle'}
+function statusPill(st, ready) {
+  if (st==='open' && ready) return '<span class="pill ok">🟢 Online</span>'
+  if (st==='open') return '<span class="pill warn">Getting ready</span>'
+  if (st==='closed') return '<span class="pill warn">Reconnecting</span>'
+  if (st==='loggedout') return '<span class="pill bad">Logged out</span>'
+  if (st==='qr') return '<span class="pill warn">Waiting for link</span>'
+  return `<span class="pill">${STATUS_NAMES[st]||st}</span>`
+}
+
+// ===== REFRESH =====
+async function refresh() {
+  let state, cons
+  try { state = await api('/api/admin/state') } catch(e) { return }
+  try { cons = await api('/api/admin/console') } catch(e){}
+  if (!state?.ok) return
+  lastState = state
+
+  // Overall pill
+  const op = document.getElementById('ovPill')
+  if (state.ready) { op.textContent='🟢 Online'; op.className='pill ok' }
+  else { op.textContent='⚠ Offline'; op.className='pill warn' }
+
+  // DASHBOARD
+  if (activeTab === 'dashboard') renderDashboard(state)
+  // BOTS
+  if (activeTab === 'bots') renderBots(state.bots)
+  // KEYS
+  if (activeTab === 'keys') { renderKeys(state.apiKeys||[]); updateBaseUrl(state) }
+  // SETTINGS
+  if (activeTab === 'settings' && !settingsLoaded) loadSettings(state)
+  // LOGS
+  if (activeTab === 'logs' && cons?.ok) renderLogs(cons)
+}
+
+// ===== DASHBOARD =====
+function renderDashboard(s) {
+  const st = s.stats || {}
+  document.getElementById('sReq').textContent = st.requested||0
+  document.getElementById('sAcc').textContent = st.accepted||0
+  document.getElementById('sDel').textContent = st.delivered||0
+  document.getElementById('sFail').textContent = st.failed||0
+  document.getElementById('sToday').textContent = s.dailyGlobal?.count||0
+  document.getElementById('sDayLim').textContent = s.settings?.dailyLimit||500
+  document.getElementById('sVer').textContent = st.verified||0
+  document.getElementById('sUnd').textContent = st.undelivered||0
+  document.getElementById('dashMeta').textContent = `v${s.version} | uptime ${fmtDur(s.uptime)}`
+  document.getElementById('dashErr').textContent = s.lastError || ''
+
+  // Mini bots
+  const db = document.getElementById('dashBots')
+  if (!s.bots?.length) { db.innerHTML = '<p class="mut">No bots configured.</p>'; return }
+  db.innerHTML = s.bots.map(b => `
+    <div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--bd);flex-wrap:wrap">
+      <div style="flex:1;min-width:120px">
+        <span style="font-weight:600">${b.label}</span>
+        <span class="mut" style="font-size:11px;margin-left:6px">${b.id}</span>
+      </div>
+      ${statusPill(b.status, b.ready)}
+      <span class="mut" style="font-size:12px">${b.botNumber ? '+'+b.botNumber : 'No number'}</span>
+      <span class="mut" style="font-size:12px">Up: ${fmtDur(b.uptime||0)}</span>
+    </div>
+  `).join('')
+
+  // Recent messages
+  const rt = document.getElementById('recentTbl')
+  if (!s.recent?.length) { rt.innerHTML = '<tr><td colspan="5" class="mut">No messages yet.</td></tr>'; return }
+  rt.innerHTML = s.recent.map(r => `
+    <tr>
+      <td><code style="font-size:11px">${r.id}</code></td>
+      <td>${r.to||'-'}</td>
+      <td><span class="mut" style="font-size:11px">${r.botId||'-'}</span></td>
+      <td><span class="pill ${r.status==='DELIVERED'||r.status==='READ'?'ok':r.status==='PENDING'?'warn':''}">${r.status}</span></td>
+      <td class="mut">${r.ageSec!=null?r.ageSec+'s ago':'-'}</td>
+    </tr>
+  `).join('')
+}
+
+// ===== BOTS =====
 function renderBots(bots) {
-  const c = document.getElementById('botsContainer');
-  const dashList = document.getElementById('dashBotsList');
-
-  // Populate Direct Chat Bot Dropdown
-  const chatSelect = document.getElementById('chatBotSelect');
-  if (chatSelect) {
-    const curVal = chatSelect.value;
-    chatSelect.innerHTML = bots.map(b => `<option value="${b.id}" ${b.id === curVal ? 'selected' : ''}>${b.label} (${b.status === 'open' ? '🟢 Ready' : '🟡 ' + b.status}) ${b.botNumber ? '+'+b.botNumber : ''}</option>`).join('');
-  }
-
-  if (!bots.length) {
-    const emptyHtml = `<div style="grid-column:1/-1; text-align:center; padding:30px; color:var(--tx-muted);">No WhatsApp bots configured. Click "Add WhatsApp Bot" to connect one.</div>`;
-    if (c) c.innerHTML = emptyHtml;
-    if (dashList) dashList.innerHTML = emptyHtml;
-    return;
-  }
-
-  const html = bots.map(b => {
-    const isOpen = b.status === 'open';
-    const isPairing = b.status === 'qr' || b.pairCode || b.qr;
-    const badgeClass = isOpen ? 'badge-open' : (isPairing ? 'badge-pairing' : 'badge-idle');
-    const statusLabel = isOpen ? '🟢 Connected' : (isPairing ? '🟡 Waiting for Link' : '⚪ ' + b.status);
-
-    let pairCodeHtml = '';
-    if (!isOpen && b.pairCode) {
-      const codeClean = b.pairCode.replace(/\s+/g, '');
-      const part1 = codeClean.slice(0, 4);
-      const part2 = codeClean.slice(4);
-      pairCodeHtml = `
-        <div class="pairing-code-container">
-          <div class="pairing-title"><svg class="icon icon-sm"><use href="#icon-key"/></svg> WhatsApp 8-Digit Pairing Code</div>
-          <div class="code-boxes-wrap">
-            ${part1.split('').map(char => `<div class="code-box">${char}</div>`).join('')}
-            <div class="code-dash">—</div>
-            ${part2.split('').map(char => `<div class="code-box">${char}</div>`).join('')}
-          </div>
-          <button class="btn btn-secondary btn-sm" onclick="copyPairCode('${codeClean}', this)" style="margin:6px 0;">
-            <svg class="icon icon-sm"><use href="#icon-copy"/></svg> Copy Pairing Code
-          </button>
-          <div class="pairing-steps-box">
-            <div class="step-item"><span class="step-num">1</span> <span>Open WhatsApp on your phone & go to <strong>Settings > Linked Devices</strong></span></div>
-            <div class="step-item"><span class="step-num">2</span> <span>Tap <strong>Link a device</strong> then <strong>"Link with phone number instead"</strong></span></div>
-            <div class="step-item"><span class="step-num">3</span> <span>Enter the 8-digit code shown above. Bot connects automatically!</span></div>
-          </div>
-        </div>
-      `;
-    } else if (!isOpen && b.qr) {
-      pairCodeHtml = `
-        <div style="text-align:center; padding:12px; background:var(--bg-input); border-radius:var(--radius-md);">
-          <img src="${b.qr}" style="width:160px; height:160px; border-radius:8px; background:#fff; padding:6px;">
-          <div style="font-size:11px; color:var(--tx-muted); margin-top:6px;">Scan with WhatsApp > Linked Devices</div>
-        </div>
-      `;
-    }
-
-    return `
-      <div class="bot-card ${isOpen ? 'status-open' : ''}">
-        <div class="bot-header">
-          <div class="bot-identity">
-            <div class="bot-avatar-box"><svg class="icon icon-lg"><use href="#icon-whatsapp"/></svg></div>
-            <div class="bot-name-group">
-              <h3>${b.label}</h3>
-              <span class="bot-phone-pill">${b.botNumber ? '+'+b.botNumber : 'No number assigned'}</span>
-            </div>
-          </div>
-          <span class="bot-status-badge ${badgeClass}">${statusLabel}</span>
-        </div>
-
-        ${b.lastError ? `<div style="padding:8px 12px; border-radius:var(--radius-sm); background:var(--err-light); color:var(--err); font-size:11.5px;">${b.lastError}</div>` : ''}
-
-        ${pairCodeHtml}
-
-        <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px; font-size:11.5px; color:var(--tx-muted);">
-          <div>Uptime: <strong style="color:var(--tx-primary);">${fmtUptime(b.uptime)}</strong></div>
-          <div>Sent Today: <strong style="color:var(--tx-primary);">${b.dailySent?.count || 0}</strong></div>
-        </div>
-
-        <div class="bot-actions-row">
-          ${!isOpen ? `<button class="btn btn-primary btn-sm" onclick="showPairModal('${b.id}', '${b.label}', '${b.botNumber || ''}')"><svg class="icon icon-sm"><use href="#icon-key"/></svg> New Pairing Code</button>` : ''}
-          <button class="btn btn-secondary btn-sm" onclick="botRestart('${b.id}')" title="Restart Bot Socket"><svg class="icon icon-sm"><use href="#icon-power"/></svg> Restart</button>
-          <button class="btn btn-secondary btn-sm" onclick="botUnlink('${b.id}')" title="Unlink WhatsApp"><svg class="icon icon-sm"><use href="#icon-unlink"/></svg> Unlink</button>
-          <button class="btn btn-danger btn-sm" onclick="botRemove('${b.id}', '${b.label}')" title="Delete Bot"><svg class="icon icon-sm"><use href="#icon-trash"/></svg></button>
-        </div>
+  const c = document.getElementById('botsContainer')
+  if (!bots?.length) { c.innerHTML = '<div class="card"><p class="mut" style="text-align:center;padding:20px">No bots yet. Click "Add Bot" to connect a WhatsApp account.</p></div>'; return }
+  c.innerHTML = bots.map(b => `
+    <div class="bot-card ${b.status==='open'&&b.ready?'linked':''}">
+      <div class="bot-header">
+        <span class="bot-label">${b.label}</span>
+        <span class="bot-id">${b.id}</span>
+        ${statusPill(b.status, b.ready)}
+        ${b.botNumber ? `<span class="mut" style="font-size:12px">+${b.botNumber}</span>` : ''}
+        ${b.me ? `<span class="mut" style="font-size:11px">${b.me}</span>` : ''}
       </div>
-    `;
-  }).join('');
 
-  if (c) c.innerHTML = html;
-  if (dashList) dashList.innerHTML = html;
-}
+      ${b.qr ? `<div class="qr-area"><img src="${b.qr}" alt="QR Code"><br><span class="mut" style="font-size:12px">Scan in WhatsApp → Linked Devices</span></div>` : ''}
+      ${b.pairCode ? `<div class="pair-code">${b.pairCode}</div><p class="mut" style="text-align:center;font-size:12px">WhatsApp → Linked Devices → Link with phone number</p>` : ''}
+      ${b.status==='open'&&b.ready ? `<div style="color:var(--ac);font-size:13px;margin-bottom:8px">✅ Linked and Online</div>` : ''}
+      ${b.lastError ? `<div style="color:var(--err);font-size:12px;margin-bottom:8px">⚠ ${b.lastError}</div>` : ''}
 
-// Copy Pairing Code
-function copyPairCode(code, btn) {
-  navigator.clipboard.writeText(code).then(() => {
-    btn.innerHTML = `<svg class="icon icon-sm"><use href="#icon-check"/></svg> Copied!`;
-    setTimeout(() => {
-      btn.innerHTML = `<svg class="icon icon-sm"><use href="#icon-copy"/></svg> Copy Pairing Code`;
-    }, 2000);
-    toast('Pairing code copied to clipboard!', 'ok');
-  });
-}
+      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin:10px 0">
+        <div class="stat"><b>${b.dailySent?.count||0}</b><span>Sent Today</span></div>
+        <div class="stat"><b>${fmtDur(b.uptime||0)}</b><span>Uptime</span></div>
+        <div class="stat ok"><b>${b.stats?.delivered||0}</b><span>Delivered</span></div>
+        <div class="stat"><b>${b.stats?.accepted||0}</b><span>Accepted</span></div>
+      </div>
 
-// ==================== ADD BOT MODAL (WITH LOCKED +92) ====================
-function showAddBotModal() {
-  showModal('Add WhatsApp Bot (+92 Pakistan)', `
-    <div class="form-group">
-      <label class="form-label">Bot Label / Name (e.g. Primary WhatsApp, Support Bot)</label>
-      <input type="text" id="addBotLabel" class="form-control" placeholder="Primary WhatsApp">
+      <div class="bot-actions">
+        <button class="sm p" onclick="botNewCode('${b.id}','pair')">New Pairing Code</button>
+        <button class="sm" onclick="botNewCode('${b.id}','qr')">QR Only</button>
+        <button class="sm" style="background:rgba(37,211,102,.15);color:var(--ac);border-color:rgba(37,211,102,.4);font-weight:600" onclick="openDirectChat('${b.id}','${b.label}',${b.ready})">💬 Direct Chat / Send Message</button>
+        <button class="sm" onclick="botRestart('${b.id}')">Reconnect</button>
+        <button class="sm d" onclick="botUnlink('${b.id}')">Unlink</button>
+        <button class="sm d" onclick="botRemove('${b.id}','${b.label}')">Remove</button>
+      </div>
+
+      ${b.history?.length ? `
+        <div style="margin-top:12px">
+          <div class="mut" style="font-size:11px;margin-bottom:6px">CONNECTION HISTORY</div>
+          <table class="hist-table">
+            <thead><tr><th>Connected</th><th>Disconnected</th><th>Duration</th><th>Reason</th></tr></thead>
+            <tbody>
+              ${b.history.slice(-5).reverse().map(h => `
+                <tr>
+                  <td>${fmtDate(h.connectedAt)}</td>
+                  <td>${h.disconnectedAt ? fmtDate(h.disconnectedAt) : '<span class="pill ok">Active</span>'}</td>
+                  <td>${h.durationSec ? fmtDur(h.durationSec) : '-'}</td>
+                  <td class="mut">${h.reason||'-'}</td>
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
+        </div>
+      ` : ''}
     </div>
-
-    <div class="form-group">
-      <label class="form-label">WhatsApp Phone Number</label>
-      <div class="phone-input-group">
-        <span class="phone-prefix-locked">
-          <span class="phone-prefix-flag">🇵🇰</span> +92
-        </span>
-        <input type="tel" id="addBotNumber" class="phone-input-field" placeholder="3XXXXXXXXX" maxlength="10" autocomplete="off" oninput="sanitizePhone(this, 'addBotPreview')">
-      </div>
-      <div class="phone-helper-box">
-        <div class="phone-helper-ur">نمبر 3 سے آگے شروع کریں (مثال: 3495031007) — شروع میں 0 یا +92 نہ لکھیں</div>
-        <div class="phone-helper-en">Start number with 3 (e.g. 3495031007) — do not enter leading 0 or +92.</div>
-      </div>
-      <div id="addBotPreview" class="phone-preview-badge" style="display:none;"></div>
-    </div>
-  `, [
-    { text: 'Cancel', cls: 'btn-secondary', fn: 'hideModal' },
-    { text: '<svg class="icon"><use href="#icon-check"/></svg> Add & Generate Pairing Code', cls: 'btn-primary', fn: submitAddBot }
-  ]);
-  setTimeout(() => document.getElementById('addBotLabel')?.focus(), 150);
+  `).join('')
 }
 
-async function submitAddBot() {
-  const label = document.getElementById('addBotLabel')?.value.trim() || 'WhatsApp Bot';
-  const numDigits = document.getElementById('addBotNumber')?.value.trim() || '';
-  if (!numDigits || numDigits.length < 9) {
-    return toast('Please enter a valid 10-digit mobile number starting with 3', 'err');
+// Direct Chat Modal
+function openDirectChat(id, label, isReady) {
+  if (!isReady) {
+    toast(`Bot "${label}" is not connected or ready yet. Link WhatsApp first!`, 'err')
+    return
   }
-  const fullNumber = '92' + numDigits;
-  hideModal();
-  toast('Adding bot and generating pairing code...', 'info');
-  try {
-    const r = await api('/api/admin/bots/add', 'POST', { label, botNumber: fullNumber });
-    if (r.ok) {
-      toast('Bot added! Requesting 8-digit code...', 'ok');
-      setTimeout(refreshData, 1200);
-      switchTab('bots');
-    } else {
-      toast(r.error || 'Failed to add bot', 'err');
-    }
-  } catch(e) { toast('Error adding bot', 'err'); }
+  showModal(
+    `💬 Direct Chat via ${label}`,
+    `<p class="mut" style="margin-bottom:12px">Send any custom WhatsApp message to any phone number from this bot.</p>
+     <label class="lbl">Recipient WhatsApp Number (e.g. 03001234567 or 923001234567)</label>
+     <input id="dmNumber" type="tel" placeholder="03XXXXXXXXX" style="margin-top:4px">
+     <label class="lbl" style="margin-top:12px">Custom Message</label>
+     <textarea id="dmMessage" placeholder="Type your WhatsApp message here..." style="min-height:90px;margin-top:4px"></textarea>
+     <div style="display:flex;gap:6px;margin-top:8px;flex-wrap:wrap">
+       <button class="sm" onclick="document.getElementById('dmMessage').value='Hello! This is a test message from WhatsApp OTP Bot Pro.'">Test Greeting</button>
+       <button class="sm" onclick="document.getElementById('dmMessage').value='Dear User, your order has been confirmed successfully.'">Order Notice</button>
+       <button class="sm" onclick="document.getElementById('dmMessage').value='Your secret verification code is *847291*. Valid for 5 minutes.'">Sample OTP</button>
+     </div>
+     <div id="dmStatus" style="margin-top:10px"></div>`,
+    [
+      { text: 'Cancel', cls: '', fn: 'hideModal()' },
+      { text: 'Send Message 🚀', cls: 'p', fn: `sendDirectMessage('${id}')` }
+    ]
+  )
+  setTimeout(() => document.getElementById('dmNumber')?.focus(), 150)
 }
 
-// ==================== NEW PAIRING CODE MODAL ====================
-function showPairModal(botId, botLabel, currentNum) {
-  let initialDigits = currentNum.replace(/\D/g, '');
-  if (initialDigits.startsWith('92')) initialDigits = initialDigits.slice(2);
-  else if (initialDigits.startsWith('0')) initialDigits = initialDigits.slice(1);
+async function sendDirectMessage(id) {
+  const num = document.getElementById('dmNumber')?.value?.trim()
+  const msg = document.getElementById('dmMessage')?.value?.trim()
+  const st = document.getElementById('dmStatus')
+  if (!num) { toast('Please enter phone number', 'err'); return }
+  if (!msg) { toast('Please enter message text', 'err'); return }
 
-  showModal(`Request Pairing Code for "${botLabel}"`, `
-    <div class="form-group">
-      <label class="form-label">WhatsApp Phone Number to Link</label>
-      <div class="phone-input-group">
-        <span class="phone-prefix-locked">
-          <span class="phone-prefix-flag">🇵🇰</span> +92
-        </span>
-        <input type="tel" id="pairBotNumber" class="phone-input-field" value="${initialDigits}" placeholder="3XXXXXXXXX" maxlength="10" autocomplete="off" oninput="sanitizePhone(this, 'pairBotPreview')">
-      </div>
-      <div class="phone-helper-box">
-        <div class="phone-helper-ur">نمبر 3 سے آگے شروع کریں (مثال: 3495031007) — شروع میں 0 یا +92 نہ لکھیں</div>
-        <div class="phone-helper-en">Start number with 3 (e.g. 3495031007) — do not enter leading 0 or +92.</div>
-      </div>
-      <div id="pairBotPreview" class="phone-preview-badge" ${initialDigits ? '' : 'style="display:none;"'}>
-        ${initialDigits ? '<svg class="icon icon-sm"><use href="#icon-check"/></svg> Full International: <strong>+92 '+initialDigits+'</strong>' : ''}
-      </div>
-    </div>
-  `, [
-    { text: 'Cancel', cls: 'btn-secondary', fn: 'hideModal' },
-    { text: 'QR Code Instead', cls: 'btn-secondary', fn: () => submitNewCode(botId, 'qr') },
-    { text: '<svg class="icon"><use href="#icon-key"/></svg> Generate 8-Digit Pairing Code', cls: 'btn-primary', fn: () => submitNewCode(botId, 'pair') }
-  ]);
-}
-
-async function submitNewCode(botId, mode) {
-  const numDigits = document.getElementById('pairBotNumber')?.value.trim() || '';
-  if (mode === 'pair' && (!numDigits || numDigits.length < 9)) {
-    return toast('Please enter a valid 10-digit mobile number starting with 3', 'err');
+  st.innerHTML = '<span class="pill warn">Sending WhatsApp message...</span>'
+  const r = await api(`/api/admin/bots/${id}/send`, 'POST', { number: num, message: msg }).catch(err => ({ ok: false, error: err.message }))
+  if (r?.ok) {
+    st.innerHTML = `<span class="pill ok">✓ Message delivered! ID: ${r.msgId?.slice(0,8)}</span>`
+    toast('Message sent successfully! 🚀', 'ok')
+    setTimeout(() => { hideModal(); refresh() }, 1800)
+  } else {
+    st.innerHTML = `<span class="pill bad">❌ Failed: ${r?.error || 'Could not send'}</span>`
+    toast('Error: ' + (r?.error || 'failed'), 'err')
   }
-  const fullNumber = numDigits ? '92' + numDigits : '';
-  hideModal();
-  toast('Generating new code...', 'info');
-  try {
-    const r = await api(`/api/admin/bots/${botId}/new-code`, 'POST', { mode, botNumber: fullNumber });
-    if (r.ok) {
-      toast('New pairing code requested! Check card.', 'ok');
-      setTimeout(refreshData, 1500);
-    } else {
-      toast(r.error || 'Failed to request code', 'err');
-    }
-  } catch(e) { toast('Error requesting code', 'err'); }
 }
 
+// Bot actions
+async function botNewCode(id, mode) {
+  let botNumber = ''
+  if (mode === 'pair') {
+    const curBot = lastState?.bots?.find(x => x.id === id)
+    const promptVal = prompt('Enter WhatsApp Phone Number to link (e.g. 03001234567 or 923001234567):', curBot?.botNumber || '')
+    if (promptVal === null) return // User cancelled
+    botNumber = promptVal.trim()
+  }
+  toast('Requesting new code...', 'info')
+  const r = await api(`/api/admin/bots/${id}/new-code`, 'POST', { mode, botNumber }).catch(() => null)
+  toast(r?.ok ? 'New code requested! Check card or console.' : 'Error: ' + (r?.error || 'failed'), r?.ok ? 'ok' : 'err')
+  setTimeout(refresh, 1000)
+}
 async function botRestart(id) {
-  toast('Restarting bot socket...', 'info');
-  await api(`/api/admin/bots/${id}/restart`, 'POST').catch(() => null);
-  setTimeout(refreshData, 1200);
+  await api(`/api/admin/bots/${id}/restart`,'POST').catch(()=>null)
+  toast('Reconnecting...','ok'); setTimeout(refresh,1000)
 }
 async function botUnlink(id) {
-  if (!confirm('Unlink this bot from WhatsApp? You will need to link again.')) return;
-  await api(`/api/admin/bots/${id}/unlink`, 'POST', { confirm: true }).catch(() => null);
-  toast('Bot unlinked', 'ok');
-  setTimeout(refreshData, 1200);
+  if (!confirm('Unlink this bot from WhatsApp?')) return
+  await api(`/api/admin/bots/${id}/unlink`,'POST',{confirm:true}).catch(()=>null)
+  toast('Unlinked','ok'); setTimeout(refresh,1000)
 }
 async function botRemove(id, label) {
-  if (!confirm(`Delete bot "${label}" permanently?`)) return;
-  await api(`/api/admin/bots/${id}/remove`, 'POST').catch(() => null);
-  toast('Bot removed', 'ok');
-  setTimeout(refreshData, 1000);
+  if (!confirm(`Remove bot "${label}"? This cannot be undone.`)) return
+  await api(`/api/admin/bots/${id}/remove`,'POST').catch(()=>null)
+  toast('Bot removed','ok'); setTimeout(refresh,1000)
 }
 
-// ==================== DIRECT CHAT MESSENGER ====================
-function updateChatPreview() {
-  const text = document.getElementById('chatMsgInput').value;
-  const bubble = document.getElementById('chatBubbleText');
-  bubble.textContent = text.trim() ? text : 'Your message preview will appear here in real-time as you type...';
-  const now = new Date();
-  document.getElementById('chatPreviewTime').textContent = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+// Add bot modal
+function showAddBotModal() {
+  showModal('Add WhatsApp Bot',
+    `<label class="lbl">Bot Label (e.g. Main Account, Backup)</label>
+     <input id="newBotLabel" type="text" placeholder="My WhatsApp Bot" style="margin-top:6px">
+     <label class="lbl" style="margin-top:12px">WhatsApp Number (optional, for pairing)</label>
+     <input id="newBotNum" type="tel" placeholder="03XXXXXXXXX" style="margin-top:6px">`,
+    [
+      {text:'Cancel', cls:'', fn:'hideModal()'},
+      {text:'Add Bot', cls:'p', fn:'addBot()'}
+    ]
+  )
+  setTimeout(()=>document.getElementById('newBotLabel')?.focus(),100)
+}
+async function addBot() {
+  const label = document.getElementById('newBotLabel')?.value||'Bot'
+  const num = document.getElementById('newBotNum')?.value||''
+  hideModal()
+  const r = await api('/api/admin/bots/add','POST',{label,botNumber:num}).catch(()=>null)
+  toast(r?.ok ? 'Bot added! Waiting for pairing...' : 'Error', r?.ok?'ok':'err')
+  setTimeout(refresh,1000)
 }
 
-async function sendDirectMessage() {
-  const botId = document.getElementById('chatBotSelect').value;
-  const numDigits = document.getElementById('chatPhoneInput').value.trim();
-  const message = document.getElementById('chatMsgInput').value.trim();
-  const resDiv = document.getElementById('chatStatusResult');
-
-  if (!botId) return toast('Please select a sender bot', 'err');
-  if (!numDigits || numDigits.length < 9) return toast('Enter valid 10-digit number starting with 3', 'err');
-  if (!message) return toast('Enter a message to send', 'err');
-
-  const fullNumber = '92' + numDigits;
-  const btn = document.getElementById('btnSendChat');
-  btn.disabled = true;
-  btn.innerHTML = `<svg class="icon icon-sm"><use href="#icon-refresh" style="animation:spin 1s infinite linear;"/></svg> Sending...`;
-
-  try {
-    const r = await api(`/api/admin/bots/${botId}/send`, 'POST', { number: fullNumber, message });
-    btn.disabled = false;
-    btn.innerHTML = `<svg class="icon"><use href="#icon-send"/></svg> Send WhatsApp Message`;
-
-    if (r.ok) {
-      toast(`Message sent successfully! (ID: ${r.msgId.slice(0,8)})`, 'ok');
-      resDiv.innerHTML = `<div style="padding:10px 14px; border-radius:var(--radius-sm); background:var(--success-light); color:var(--success); border:1px solid rgba(34,197,94,0.3);">
-        <strong>Message Delivered via ${r.botLabel}!</strong><br>
-        Recipient: +${fullNumber}<br>
-        Message ID: <code>${r.msgId}</code>
-      </div>`;
-      document.getElementById('chatMsgInput').value = '';
-      updateChatPreview();
-      setTimeout(refreshData, 1000);
-    } else {
-      toast(r.error || 'Failed to send message', 'err');
-      resDiv.innerHTML = `<div style="padding:10px 14px; border-radius:var(--radius-sm); background:var(--err-light); color:var(--err);">${r.error}</div>`;
-    }
-  } catch(e) {
-    btn.disabled = false;
-    btn.innerHTML = `<svg class="icon"><use href="#icon-send"/></svg> Send WhatsApp Message`;
-    toast(e.message || 'Error sending message', 'err');
-  }
-}
-
-// ==================== RECENT MESSAGES ====================
-function renderRecent(recent) {
-  const tb = document.getElementById('recentTbody');
-  if (!recent || !recent.length) {
-    tb.innerHTML = `<tr><td colspan="5" style="text-align:center; color:var(--tx-muted); padding:20px;">No recent OTP messages sent</td></tr>`;
-    return;
-  }
-  tb.innerHTML = recent.map(r => `
-    <tr>
-      <td><code>${r.id}</code></td>
-      <td><strong>${r.to}</strong></td>
-      <td><span class="badge" style="background:var(--bg-input); padding:3px 8px; border-radius:6px;">${r.botId}</span></td>
-      <td><span style="color:${r.status === 'delivered' || r.status === 'read' ? 'var(--success)' : 'var(--warn)'}; font-weight:600;">${r.status}</span></td>
-      <td>${r.ageSec}s ago</td>
-    </tr>
-  `).join('');
-}
-
-// ==================== API KEYS MANAGEMENT ====================
+// ===== API KEYS =====
 function renderKeys(keys) {
-  const tb = document.getElementById('keysTbody');
-  if (!keys || !keys.length) {
-    tb.innerHTML = `<tr><td colspan="7" style="text-align:center; color:var(--tx-muted); padding:24px;">No API keys generated yet. Click "Generate New API Key".</td></tr>`;
-    return;
-  }
+  const tb = document.getElementById('keysTbl')
+  const noKeys = document.getElementById('noKeys')
+  if (!keys?.length) { tb.innerHTML=''; noKeys.style.display='block'; return }
+  noKeys.style.display='none'
   tb.innerHTML = keys.map(k => `
     <tr>
-      <td><strong>${k.label}</strong></td>
-      <td><code style="color:var(--accent);">${k.key}</code></td>
-      <td>${k.dailyLimit} / day</td>
-      <td>${k.usedToday}</td>
-      <td><span style="color:${k.enabled ? 'var(--success)' : 'var(--err)'}; font-weight:600;">${k.enabled ? 'Active' : 'Disabled'}</span></td>
-      <td>${new Date(k.createdAt).toLocaleDateString()}</td>
+      <td><b>${k.label}</b></td>
+      <td><code style="font-size:11px">${k.key}...</code></td>
       <td>
-        <div style="display:flex; gap:6px;">
-          <button class="btn btn-secondary btn-sm" onclick="toggleKey('${k.id}')">${k.enabled ? 'Disable' : 'Enable'}</button>
-          <button class="btn btn-danger btn-sm" onclick="revokeKey('${k.id}')"><svg class="icon icon-sm"><use href="#icon-trash"/></svg></button>
+        <input type="number" value="${k.dailyLimit||0}" min="0" style="width:70px;padding:4px 8px;font-size:12px"
+          onchange="updateKeyLimit('${k.id}',this.value)">
+      </td>
+      <td>${k.usedToday||0}</td>
+      <td>${k.enabled ? '<span class="pill ok">Active</span>' : '<span class="pill bad">Disabled</span>'}</td>
+      <td>
+        <div style="display:flex;gap:6px;flex-wrap:wrap">
+          <button class="sm" onclick="toggleKey('${k.id}')">${k.enabled?'Disable':'Enable'}</button>
+          <button class="sm d" onclick="revokeKey('${k.id}','${k.label}')">Revoke</button>
         </div>
       </td>
     </tr>
-  `).join('');
+  `).join('')
 }
 
-function showGenerateKeyModal() {
-  showModal('Generate New API Key', `
-    <div class="form-group">
-      <label class="form-label">Application / Service Label</label>
-      <input type="text" id="newKeyLabel" class="form-control" placeholder="Banking Web App / Mobile API">
-    </div>
-    <div class="form-group">
-      <label class="form-label">Daily Send Limit</label>
-      <input type="number" id="newKeyLimit" class="form-control" value="1000" min="10" max="100000">
-    </div>
-  `, [
-    { text: 'Cancel', cls: 'btn-secondary', fn: 'hideModal' },
-    { text: '<svg class="icon"><use href="#icon-key"/></svg> Create Key', cls: 'btn-primary', fn: submitGenerateKey }
-  ]);
+function updateBaseUrl(state) {
+  const url = state?.publicUrl || window.location.origin
+  document.getElementById('baseUrlDisp').textContent = url
 }
 
-async function submitGenerateKey() {
-  const label = document.getElementById('newKeyLabel').value.trim() || 'App Key';
-  const dailyLimit = Number(document.getElementById('newKeyLimit').value) || 1000;
-  hideModal();
-  toast('Generating key...', 'info');
-  try {
-    const r = await api('/api/admin/keys/generate', 'POST', { label, dailyLimit });
-    if (r.ok && r.key) {
-      showModal('API Key Generated (Save Now)', `
-        <div style="padding:12px; background:var(--warn-light); border:1px solid rgba(245,158,11,0.3); border-radius:var(--radius-sm); color:var(--warn); font-size:12.5px; margin-bottom:14px;">
-          <strong>Warning:</strong> Copy this API key now. For security, it will not be displayed in full again!
-        </div>
-        <div style="background:var(--bg-input); padding:14px; border-radius:var(--radius-md); border:1px solid var(--bd-color); font-family:var(--font-mono); font-size:14px; word-break:break-all; color:var(--accent);">
-          ${r.key.key}
-        </div>
-      `, [
-        { text: '<svg class="icon"><use href="#icon-copy"/></svg> Copy Key', cls: 'btn-primary', fn: () => {
-          navigator.clipboard.writeText(r.key.key);
-          toast('API Key copied to clipboard!', 'ok');
-          hideModal();
-        }}
-      ]);
-      refreshData();
-    }
-  } catch(e) { toast('Error generating key', 'err'); }
+function showGenKeyModal() {
+  showModal('Generate API Key',
+    `<label class="lbl">Label (what is this key for?)</label>
+     <input id="keyLabel" type="text" placeholder="My App" style="margin-top:6px">
+     <label class="lbl" style="margin-top:12px">Daily Limit (0 = unlimited)</label>
+     <input id="keyLimit" type="number" value="1000" min="0" style="margin-top:6px">`,
+    [
+      {text:'Cancel', cls:'', fn:'hideModal()'},
+      {text:'Generate', cls:'p', fn:'genKey()'}
+    ]
+  )
+  setTimeout(()=>document.getElementById('keyLabel')?.focus(),100)
+}
+
+async function genKey() {
+  const label = document.getElementById('keyLabel')?.value||'API Key'
+  const dailyLimit = parseInt(document.getElementById('keyLimit')?.value)||0
+  hideModal()
+  const r = await api('/api/admin/keys/generate','POST',{label,dailyLimit}).catch(()=>null)
+  if (!r?.ok) { toast('Error generating key','err'); return }
+  // Show the generated key ONCE
+  showModal('🔑 API Key Generated',
+    `<div class="key-reveal">${r.key}</div>
+     <p class="key-warn">⚠ Copy this key now! It will not be shown again.</p>`,
+    [{text:'Copy Key', cls:'p', fn:`copyText('${r.key}',null);toast('Key copied!','ok')`},
+     {text:'Close', cls:'', fn:'hideModal();refresh()'}]
+  )
 }
 
 async function toggleKey(id) {
-  await api(`/api/admin/keys/${id}/toggle`, 'POST');
-  refreshData();
-  toast('Key status toggled', 'ok');
+  await api(`/api/admin/keys/${id}/toggle`,'POST').catch(()=>null)
+  toast('Updated','ok'); refresh()
 }
-async function revokeKey(id) {
-  if (!confirm('Revoke and delete this API key permanently?')) return;
-  await api(`/api/admin/keys/${id}/revoke`, 'POST');
-  refreshData();
-  toast('Key revoked', 'ok');
+async function revokeKey(id, label) {
+  if (!confirm(`Revoke key "${label}"? This will break any app using it.`)) return
+  await api(`/api/admin/keys/${id}/revoke`,'POST').catch(()=>null)
+  toast('Key revoked','ok'); refresh()
 }
-
-// Code Snippets
-function showCodeSnippet(lang) {
-  selectedSnippetLang = lang;
-  const base = window.location.origin;
-  const box = document.getElementById('codeSnippetBox');
-  if (lang === 'curl') {
-    box.textContent = `curl -X POST "${base}/api/v1/send-otp" \\
-  -H "Content-Type: application/json" \\
-  -H "x-api-key: YOUR_API_KEY" \\
-  -d '{"number": "923495031007"}'`;
-  } else if (lang === 'js') {
-    box.textContent = `// JavaScript / Node.js
-const res = await fetch('${base}/api/v1/send-otp', {
-  method: 'POST',
-  headers: {
-    'Content-Type': 'application/json',
-    'x-api-key': 'YOUR_API_KEY'
-  },
-  body: JSON.stringify({ number: '923495031007' })
-});
-const data = await res.json();
-console.log(data);`;
-  } else if (lang === 'python') {
-    box.textContent = `# Python Requests
-import requests
-
-res = requests.post(
-  '${base}/api/v1/send-otp',
-  headers={'x-api-key': 'YOUR_API_KEY'},
-  json={'number': '923495031007'}
-)
-print(res.json())`;
-  } else if (lang === 'php') {
-    box.textContent = `<?php
-// PHP cURL
-$ch = curl_init('${base}/api/v1/send-otp');
-curl_setopt_array($ch, [
-  CURLOPT_POST => true,
-  CURLOPT_RETURNTRANSFER => true,
-  CURLOPT_HTTPHEADER => [
-    'Content-Type: application/json',
-    'x-api-key: YOUR_API_KEY'
-  ],
-  CURLOPT_POSTFIELDS => json_encode(['number' => '923495031007'])
-]);
-$response = json_decode(curl_exec($ch), true);
-print_r($response);
-?>`;
-  }
-}
-showCodeSnippet('curl');
-
-function copySnippet() {
-  const code = document.getElementById('codeSnippetBox').textContent;
-  navigator.clipboard.writeText(code).then(() => toast('Code snippet copied!', 'ok'));
+async function updateKeyLimit(id, val) {
+  await api(`/api/admin/keys/${id}`,'PUT',{dailyLimit:parseInt(val)||0}).catch(()=>null)
 }
 
-// ==================== SETTINGS POPULATION & SAVING ====================
-function populateSettings(s) {
-  document.getElementById('cfgOtpTtl').value = s.otpTtlSec || 300;
-  document.getElementById('cfgCooldown').value = s.cooldownSec || 60;
-  document.getElementById('cfgMaxPerHour').value = s.maxPerHour || 30;
-  document.getElementById('cfgIpLimit').value = s.ipLimitPerHour || 10;
-  document.getElementById('cfgDailyLimit').value = s.dailyLimit || 500;
-  document.getElementById('cfgWarmup').value = s.warmupSec || 20;
-  document.getElementById('cfgMessage').value = s.message || '';
-  document.getElementById('cfgSignupEnabled').checked = !!s.signupEnabled;
-  document.getElementById('cfgRestrict').checked = !!s.restrictToAllowed;
-  document.getElementById('cfgAllowedNumbers').value = (s.allowedNumbers || []).join('\n');
+// ===== SETTINGS =====
+function loadSettings(s) {
+  settingsLoaded = true
+  const st = s.settings || {}
+  document.getElementById('fTtl').value = st.otpTtlSec||300
+  document.getElementById('fCd').value = st.cooldownSec||60
+  document.getElementById('fMax').value = st.maxPerHour||30
+  document.getElementById('fDay').value = st.dailyLimit||500
+  document.getElementById('fIp').value = st.ipLimitPerHour||10
+  document.getElementById('fWarm').value = st.warmupSec||20
+  document.getElementById('fMsg').value = st.message||''
+  document.getElementById('fSignup').checked = !!st.signupEnabled
+  document.getElementById('fRestrict').checked = !!st.restrictToAllowed
+  document.getElementById('fAllowed').value = (st.allowedNumbers||[]).join('\n')
+  document.getElementById('fWatch').checked = !!st.tunnelWatchdog
+  document.getElementById('pubUrlDisp').textContent = s.publicUrl||'(not set)'
+  document.getElementById('pwInfo').textContent = s.passwordEnabled ? '✅ Admin password is set.' : 'No admin password. Set ADMIN_PASSWORD env variable.'
+  const pp = document.getElementById('pubPill')
+  if (s.publicOk===true) { pp.textContent='✅ Reachable'; pp.className='pill ok' }
+  else if (s.publicOk===false) { pp.textContent='❌ Not reachable'; pp.className='pill bad' }
+  else { pp.textContent='Checking...'; pp.className='pill' }
+  if (s.underPm2) document.getElementById('restartTunBtn').style.display='inline-flex'
 }
 
 async function saveSettings() {
   const body = {
-    otpTtlSec: Number(document.getElementById('cfgOtpTtl').value),
-    cooldownSec: Number(document.getElementById('cfgCooldown').value),
-    maxPerHour: Number(document.getElementById('cfgMaxPerHour').value),
-    ipLimitPerHour: Number(document.getElementById('cfgIpLimit').value),
-    dailyLimit: Number(document.getElementById('cfgDailyLimit').value),
-    warmupSec: Number(document.getElementById('cfgWarmup').value),
-    message: document.getElementById('cfgMessage').value,
-    signupEnabled: document.getElementById('cfgSignupEnabled').checked,
-    restrictToAllowed: document.getElementById('cfgRestrict').checked,
-    allowedNumbers: document.getElementById('cfgAllowedNumbers').value.split('\n').map(s=>s.trim()).filter(Boolean)
-  };
-  toast('Saving settings...', 'info');
-  try {
-    const r = await api('/api/admin/settings', 'POST', body);
-    if (r.ok) toast('Gateway settings saved successfully!', 'ok');
-    else toast(r.error || 'Failed to save', 'err');
-  } catch(e) { toast('Error saving settings', 'err'); }
-}
-
-function resetDefaultMsg() {
-  document.getElementById('cfgMessage').value = `🔐 *Your Verification Code*
-
-┌─────────────────────┐
-│      *{OTP}*        │
-└─────────────────────┘
-
-⏱ Valid for *{MINUTES} minutes*
-🔒 Keep this code private
-
-_Tap code to copy_`;
-}
-
-// ==================== BILINGUAL GUIDE FILTER ====================
-function filterGuide(mode) {
-  document.querySelectorAll('.guide-tab-btn').forEach(btn => btn.classList.remove('active'));
-  event.target.classList.add('active');
-
-  const enCols = document.querySelectorAll('.guide-col-en');
-  const urCols = document.querySelectorAll('.guide-col-ur');
-  const bodies = document.querySelectorAll('.guide-card-body');
-
-  if (mode === 'ur') {
-    enCols.forEach(el => el.style.display = 'none');
-    urCols.forEach(el => { el.style.display = 'block'; el.style.borderRight = 'none'; });
-    bodies.forEach(b => b.style.gridTemplateColumns = '1fr');
-  } else if (mode === 'en') {
-    urCols.forEach(el => el.style.display = 'none');
-    enCols.forEach(el => el.style.display = 'block');
-    bodies.forEach(b => b.style.gridTemplateColumns = '1fr');
-  } else {
-    enCols.forEach(el => el.style.display = 'block');
-    urCols.forEach(el => {
-      el.style.display = 'block';
-      if (window.innerWidth > 768) {
-        el.style.borderRight = '1px solid var(--bd-color)';
-      }
-    });
-    bodies.forEach(b => {
-      if (window.innerWidth > 768) b.style.gridTemplateColumns = '1fr 1fr';
-    });
+    otpTtlSec: parseInt(document.getElementById('fTtl').value),
+    cooldownSec: parseInt(document.getElementById('fCd').value),
+    maxPerHour: parseInt(document.getElementById('fMax').value),
+    dailyLimit: parseInt(document.getElementById('fDay').value),
+    ipLimitPerHour: parseInt(document.getElementById('fIp').value),
+    warmupSec: parseInt(document.getElementById('fWarm').value),
+    message: document.getElementById('fMsg').value,
+    signupEnabled: document.getElementById('fSignup').checked,
+    restrictToAllowed: document.getElementById('fRestrict').checked,
+    allowedNumbers: document.getElementById('fAllowed').value,
+    tunnelWatchdog: document.getElementById('fWatch').checked
   }
+  const r = await api('/api/admin/settings','POST',body).catch(()=>null)
+  toast(r?.ok ? '✅ Settings saved!' : ('Error: '+(r?.error||'failed')), r?.ok?'ok':'err')
+  settingsLoaded = false
 }
 
-function toggleGuide(head) {
-  const body = head.nextElementSibling;
-  body.style.display = body.style.display === 'none' ? 'grid' : 'none';
+const DEFAULT_MSG = `\uD83D\uDD10 *Your Verification Code*\n\n\u250C\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2510\n\u2502      *{OTP}*        \u2502\n\u2514\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2518\n\n\u23F1 Valid for *{MINUTES} minutes*\n\uD83D\uDD12 Keep this code private\n\n_Tap code to copy_`
+
+function resetMsg() {
+  document.getElementById('fMsg').value = DEFAULT_MSG
+  toast('Message reset to default','ok')
+}
+function previewMsg() {
+  const p = document.getElementById('msgPreview')
+  const txt = document.getElementById('fMsg').value.replace('{OTP}','123456').replace('{MINUTES}','5')
+  p.textContent = txt
+  p.classList.toggle('hide')
 }
 
-// Clear errors
-async function clearConsoleErrors() {
-  await api('/api/admin/console/clear', 'POST').catch(() => null);
-  toast('Error console cleared', 'ok');
-  refreshData();
+async function checkPub() {
+  toast('Checking...','info')
+  const r = await api('/api/admin/check-public','POST').catch(()=>null)
+  const pp = document.getElementById('pubPill')
+  if (r?.publicOk===true) { pp.textContent='✅ Reachable'; pp.className='pill ok'; toast('Public link is reachable!','ok') }
+  else { pp.textContent='❌ Not reachable'; pp.className='pill bad'; toast('Public link is NOT reachable','err') }
+}
+async function restartTun() {
+  if (!confirm('Restart tunnel? A quick-tunnel link will change.')) return
+  await api('/api/admin/restart-tunnel','POST').catch(()=>null)
+  toast('Tunnel restarting...','ok')
 }
 
-function fmtUptime(sec) {
-  if (!sec || sec < 1) return '0s';
-  const d = Math.floor(sec / 86400);
-  const h = Math.floor((sec % 86400) / 3600);
-  const m = Math.floor((sec % 3600) / 60);
-  if (d > 0) return `${d}d ${h}h`;
-  if (h > 0) return `${h}h ${m}m`;
-  return `${m}m ${sec % 60}s`;
+// ===== LOGS =====
+function setFilter(f, btn) {
+  logFilter = f
+  document.querySelectorAll('#page-logs .sm').forEach(b=>b.style.background='')
+  if(btn) btn.style.background='rgba(255,255,255,.15)'
+  refresh()
 }
 
-// Start sequence
-window.addEventListener('DOMContentLoaded', () => {
-  if (token) showApp();
-  else showLogin();
-});
+function renderLogs(c) {
+  // Errors
+  const errBadge = document.getElementById('errBadge')
+  errBadge.textContent = c.errors?.length||0
+  errBadge.className = 'pill '+(c.errors?.length?'bad':'ok')
+  const ec = document.getElementById('errContainer')
+  if (!c.errors?.length) { ec.innerHTML='<p class="mut">No errors. 🎉</p>' }
+  else {
+    ec.innerHTML = c.errors.map(e => `
+      <div class="errrow">
+        <div><b>[${e.where}]</b> ${e.t}${e.count>1?' × '+e.count:''}</div>
+        <div class="esrc">📄 ${e.src}</div>
+        <div style="margin-top:4px">${e.msg}</div>
+        ${e.hint ? `<div class="ehint">💡 Fix: ${e.hint}</div>` : ''}
+      </div>
+    `).join('')
+  }
+
+  // Live log
+  const pre = document.getElementById('logPre')
+  const atEnd = pre.scrollTop+pre.clientHeight >= pre.scrollHeight-30
+  const logs = c.logs||[]
+  const filtered = logFilter==='all' ? logs : logs.filter(l=>l.lvl===logFilter)
+  pre.innerHTML = filtered.map(l => `<div class="l-${l.lvl}">${l.t} ${l.msg}</div>`).join('')
+  if (atEnd) pre.scrollTop = pre.scrollHeight
+}
+
+async function clearErrors() {
+  await api('/api/admin/console/clear','POST').catch(()=>null)
+  toast('Errors cleared','ok'); refresh()
+}
+
+// ===== SNIPPETS =====
+function showSnippet(lang, btn) {
+  document.querySelectorAll('[id^=snip-]').forEach(el=>el.classList.add('hide'))
+  document.getElementById('snip-'+lang)?.classList.remove('hide')
+  document.querySelectorAll('.snippet-tab').forEach(b=>b.classList.remove('active'))
+  if(btn) btn.classList.add('active')
+}
+
+// ===== MODAL =====
+function showModal(title, bodyHtml, btns) {
+  document.getElementById('modalTitle').textContent = title
+  document.getElementById('modalBody').innerHTML = bodyHtml
+  document.getElementById('modalBtns').innerHTML = btns.map(b =>
+    `<button class="${b.cls}" onclick="${b.fn}">${b.text}</button>`
+  ).join('')
+  document.getElementById('modalBg').classList.add('open')
+}
+function hideModal() { document.getElementById('modalBg').classList.remove('open') }
+
+// ===== INIT =====
+if (token) showDash()
+else showLogin()
 </script>
 </body>
 </html>
