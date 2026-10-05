@@ -1,0 +1,2099 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#070b14">
+<title>FinVault Pro - Secure Banking & OTP Demo</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+<style>
+/* ==========================================================================
+   THEME DESIGN TOKENS
+   ========================================================================== */
+:root {
+  --font-main: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+  --font-mono: 'JetBrains Mono', monospace;
+
+  /* Dark Theme Default */
+  --bg-app: #070b14;
+  --bg-surface: #0d1527;
+  --bg-card: rgba(255, 255, 255, 0.05);
+  --bg-card-hover: rgba(255, 255, 255, 0.08);
+  --bg-input: rgba(0, 0, 0, 0.45);
+  --border-subtle: rgba(255, 255, 255, 0.08);
+  --border-focus: rgba(37, 211, 102, 0.6);
+
+  --text-primary: #f0f4ff;
+  --text-secondary: #94a3b8;
+  --text-muted: #64748b;
+
+  --accent-wa: #25d366;
+  --accent-wa-hover: #1ebd5a;
+  --accent-glow: rgba(37, 211, 102, 0.25);
+  --accent-gradient: linear-gradient(135deg, #25d366 0%, #128c7e 100%);
+  --brand-gradient: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
+
+  --danger: #ef4444;
+  --danger-bg: rgba(239, 68, 68, 0.12);
+  --warning: #f59e0b;
+  --warning-bg: rgba(245, 158, 11, 0.12);
+  --success: #10b981;
+  --success-bg: rgba(16, 185, 129, 0.12);
+  --info: #38bdf8;
+  --info-bg: rgba(56, 189, 248, 0.12);
+
+  --radius-sm: 8px;
+  --radius-md: 14px;
+  --radius-lg: 20px;
+  --radius-xl: 28px;
+  --radius-full: 9999px;
+
+  --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.3);
+  --shadow-md: 0 10px 30px rgba(0, 0, 0, 0.4);
+  --shadow-lg: 0 20px 50px rgba(0, 0, 0, 0.6);
+  --shadow-glow: 0 0 25px var(--accent-glow);
+
+  --nav-height: 64px;
+}
+
+[data-theme="light"] {
+  --bg-app: #f1f5f9;
+  --bg-surface: #ffffff;
+  --bg-card: #ffffff;
+  --bg-card-hover: #f8fafc;
+  --bg-input: #f8fafc;
+  --border-subtle: #e2e8f0;
+  --border-focus: #10b981;
+
+  --text-primary: #0f172a;
+  --text-secondary: #475569;
+  --text-muted: #94a3b8;
+
+  --accent-wa: #16a34a;
+  --accent-wa-hover: #15803d;
+  --accent-glow: rgba(22, 163, 74, 0.2);
+  --accent-gradient: linear-gradient(135deg, #16a34a 0%, #0d9488 100%);
+  --brand-gradient: linear-gradient(135deg, #2563eb 0%, #1e40af 100%);
+
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.05);
+  --shadow-md: 0 10px 25px rgba(0, 0, 0, 0.06);
+  --shadow-lg: 0 20px 40px rgba(0, 0, 0, 0.08);
+}
+
+/* ==========================================================================
+   RESET & BASE STYLES
+   ========================================================================== */
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+  -webkit-tap-highlight-color: transparent;
+}
+
+html, body {
+  width: 100%;
+  height: 100%;
+  overflow-x: hidden;
+  background-color: #030712;
+  font-family: var(--font-main);
+  color: var(--text-primary);
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+/* ==========================================================================
+   FRAME SIMULATOR (MOBILE & DESKTOP SWITCHER)
+   ========================================================================== */
+.viewport-wrapper {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  background: radial-gradient(circle at 50% 10%, rgba(37, 211, 102, 0.08), transparent 70%),
+              radial-gradient(circle at 90% 90%, rgba(59, 130, 246, 0.06), transparent 70%),
+              #030712;
+}
+
+.device-frame {
+  width: 100%;
+  max-width: 414px;
+  height: 870px;
+  max-height: calc(100vh - 40px);
+  background-color: var(--bg-app);
+  border-radius: 44px;
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 0 0 12px #1e293b, 0 25px 60px -15px rgba(0, 0, 0, 0.9), 0 0 40px rgba(37, 211, 102, 0.1);
+  transition: all 0.3s ease;
+}
+
+@media (max-width: 600px) {
+  .viewport-wrapper {
+    padding: 0;
+    background: var(--bg-app);
+  }
+  .device-frame {
+    max-width: 100%;
+    height: 100vh;
+    max-height: 100vh;
+    border-radius: 0;
+    box-shadow: none;
+  }
+  .device-notch {
+    display: none !important;
+  }
+}
+
+/* Dynamic Notch */
+.device-notch {
+  position: absolute;
+  top: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 140px;
+  height: 28px;
+  background-color: #1e293b;
+  border-bottom-left-radius: 18px;
+  border-bottom-right-radius: 18px;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+}
+.notch-camera {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: #0f172a;
+}
+.notch-speaker {
+  width: 40px;
+  height: 4px;
+  border-radius: 99px;
+  background: #0f172a;
+}
+
+/* Status Bar */
+.device-statusbar {
+  height: 38px;
+  padding: 8px 24px 0;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--text-secondary);
+  z-index: 999;
+}
+.statusbar-icons {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* ==========================================================================
+   APP SCREENS CONTAINER
+   ========================================================================== */
+.app-viewport {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+  position: relative;
+  scrollbar-width: none;
+}
+.app-viewport::-webkit-scrollbar {
+  display: none;
+}
+
+.screen {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  min-height: 100%;
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(20px);
+  transition: opacity 0.35s ease, transform 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+  background: var(--bg-app);
+}
+
+.screen.active {
+  position: relative;
+  opacity: 1;
+  pointer-events: auto;
+  transform: translateY(0);
+}
+
+/* Screen Header Bar */
+.screen-topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 24px;
+}
+.btn-icon-back {
+  width: 40px;
+  height: 40px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-subtle);
+  background: var(--bg-card);
+  color: var(--text-primary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+.btn-icon-back:hover {
+  background: var(--bg-card-hover);
+  border-color: var(--text-secondary);
+}
+.screen-title-center {
+  font-size: 16px;
+  font-weight: 700;
+  letter-spacing: -0.2px;
+}
+
+/* ==========================================================================
+   UI COMPONENTS (BUTTONS, INPUTS, CARDS, BADGES)
+   ========================================================================== */
+.card-glass {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+  padding: 20px;
+  box-shadow: var(--shadow-sm);
+}
+
+.form-group {
+  margin-bottom: 18px;
+}
+.form-label {
+  display: block;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  margin-bottom: 6px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+.input-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+.input-icon-left {
+  position: absolute;
+  left: 14px;
+  color: var(--text-muted);
+  display: flex;
+  align-items: center;
+  pointer-events: none;
+}
+.input-control {
+  width: 100%;
+  height: 50px;
+  background-color: var(--bg-input);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  padding: 0 16px 0 44px;
+  color: var(--text-primary);
+  font-family: var(--font-main);
+  font-size: 14px;
+  font-weight: 500;
+  outline: none;
+  transition: all 0.2s ease;
+}
+.input-control:focus {
+  border-color: var(--accent-wa);
+  background-color: var(--bg-surface);
+  box-shadow: 0 0 0 3px var(--accent-glow);
+}
+.input-control::placeholder {
+  color: var(--text-muted);
+}
+.input-toggle-btn {
+  position: absolute;
+  right: 14px;
+  background: transparent;
+  border: 0;
+  color: var(--text-muted);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  padding: 4px;
+}
+.input-toggle-btn:hover {
+  color: var(--text-primary);
+}
+
+/* Primary Button */
+.btn-primary {
+  width: 100%;
+  height: 52px;
+  border: 0;
+  border-radius: var(--radius-md);
+  background: var(--accent-gradient);
+  color: #04210f;
+  font-family: var(--font-main);
+  font-size: 15px;
+  font-weight: 700;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  box-shadow: 0 8px 24px var(--accent-glow);
+  transition: all 0.2s ease;
+}
+.btn-primary:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 12px 28px var(--accent-glow);
+}
+.btn-primary:active {
+  transform: translateY(0);
+}
+.btn-primary:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none !important;
+  box-shadow: none !important;
+}
+
+/* Secondary Button */
+.btn-secondary {
+  width: 100%;
+  height: 50px;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  background: var(--bg-card);
+  color: var(--text-primary);
+  font-family: var(--font-main);
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  transition: all 0.2s ease;
+}
+.btn-secondary:hover {
+  background: var(--bg-card-hover);
+  border-color: var(--text-secondary);
+}
+
+/* 6-PIN OTP Input Group */
+.otp-boxes {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  margin: 24px 0;
+}
+.otp-box {
+  width: 48px;
+  height: 56px;
+  text-align: center;
+  font-family: var(--font-mono);
+  font-size: 24px;
+  font-weight: 700;
+  background-color: var(--bg-input);
+  border: 2px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  color: var(--accent-wa);
+  outline: none;
+  transition: all 0.2s ease;
+}
+.otp-box:focus {
+  border-color: var(--accent-wa);
+  background-color: var(--bg-surface);
+  box-shadow: 0 0 0 4px var(--accent-glow);
+  transform: scale(1.05);
+}
+.otp-box.filled {
+  border-color: rgba(37, 211, 102, 0.4);
+  background-color: rgba(37, 211, 102, 0.05);
+}
+
+/* Pill / Badge */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 10px;
+  border-radius: var(--radius-full);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.2px;
+}
+.badge-success {
+  background: var(--success-bg);
+  color: var(--success);
+  border: 1px solid rgba(16, 185, 129, 0.3);
+}
+.badge-warning {
+  background: var(--warning-bg);
+  color: var(--warning);
+  border: 1px solid rgba(245, 158, 11, 0.3);
+}
+.badge-info {
+  background: var(--info-bg);
+  color: var(--info);
+  border: 1px solid rgba(56, 189, 248, 0.3);
+}
+
+/* SVG Vector Icon Styling */
+.svg-icon {
+  width: 20px;
+  height: 20px;
+  stroke-width: 2;
+  stroke: currentColor;
+  fill: none;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  flex-shrink: 0;
+}
+.svg-icon-sm {
+  width: 16px;
+  height: 16px;
+}
+.svg-icon-lg {
+  width: 28px;
+  height: 28px;
+}
+
+/* ==========================================================================
+   SPECIFIC SCREEN DESIGNS
+   ========================================================================== */
+
+/* 1. Splash Screen */
+#screen-splash {
+  justify-content: center;
+  align-items: center;
+  text-align: center;
+  background: radial-gradient(circle at center, rgba(37, 211, 102, 0.15) 0%, transparent 70%), var(--bg-app);
+}
+.splash-logo-wrap {
+  width: 88px;
+  height: 88px;
+  border-radius: 26px;
+  background: var(--accent-gradient);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #04210f;
+  margin-bottom: 20px;
+  box-shadow: 0 15px 40px var(--accent-glow);
+  animation: pulse-logo 2.5s infinite ease-in-out;
+}
+@keyframes pulse-logo {
+  0%, 100% { transform: scale(1); box-shadow: 0 15px 40px var(--accent-glow); }
+  50% { transform: scale(1.06); box-shadow: 0 20px 50px rgba(37, 211, 102, 0.45); }
+}
+.splash-title {
+  font-size: 26px;
+  font-weight: 800;
+  letter-spacing: -0.5px;
+}
+.splash-subtitle {
+  color: var(--text-secondary);
+  font-size: 13px;
+  margin-top: 6px;
+}
+.splash-spinner {
+  width: 28px;
+  height: 28px;
+  border: 3px solid rgba(255, 255, 255, 0.1);
+  border-top-color: var(--accent-wa);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+  margin-top: 40px;
+}
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+/* 2. Login Screen */
+.auth-header {
+  margin-bottom: 28px;
+}
+.auth-title {
+  font-size: 26px;
+  font-weight: 800;
+  letter-spacing: -0.5px;
+  line-height: 1.2;
+}
+.auth-sub {
+  color: var(--text-secondary);
+  font-size: 13px;
+  margin-top: 8px;
+}
+
+/* 3. Dashboard Screen */
+#screen-dashboard {
+  padding: 0;
+  background: var(--bg-app);
+}
+.dashboard-content {
+  padding: 20px;
+  padding-bottom: 90px;
+}
+.dash-user-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 20px;
+}
+.user-info-group {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.avatar-ring {
+  width: 46px;
+  height: 46px;
+  border-radius: 50%;
+  background: var(--accent-gradient);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #04210f;
+  font-weight: 800;
+  font-size: 18px;
+  box-shadow: 0 4px 14px var(--accent-glow);
+}
+.user-texts .greeting {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+.user-texts .user-name {
+  font-size: 16px;
+  font-weight: 700;
+}
+
+/* Balance Card */
+.wallet-card {
+  background: linear-gradient(135deg, #0d1e38 0%, #081224 100%);
+  border: 1px solid rgba(59, 130, 246, 0.25);
+  border-radius: var(--radius-xl);
+  padding: 24px;
+  color: #fff;
+  position: relative;
+  overflow: hidden;
+  box-shadow: 0 16px 36px rgba(0, 0, 0, 0.4);
+  margin-bottom: 24px;
+}
+.wallet-card::after {
+  content: '';
+  position: absolute;
+  top: -40px;
+  right: -40px;
+  width: 140px;
+  height: 140px;
+  background: radial-gradient(circle, rgba(37, 211, 102, 0.25), transparent 70%);
+  border-radius: 50%;
+  pointer-events: none;
+}
+.wallet-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+.balance-amt {
+  font-size: 32px;
+  font-weight: 800;
+  letter-spacing: -0.5px;
+  margin: 12px 0 18px;
+  font-family: var(--font-mono);
+}
+.wallet-actions {
+  display: flex;
+  gap: 10px;
+}
+.wallet-action-btn {
+  flex: 1;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: var(--radius-md);
+  padding: 10px 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  font-weight: 600;
+  color: #fff;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+.wallet-action-btn:hover {
+  background: rgba(255, 255, 255, 0.15);
+  border-color: var(--accent-wa);
+}
+
+/* Quick Actions Grid */
+.actions-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+  margin-bottom: 24px;
+}
+.action-grid-item {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+  padding: 14px 6px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+.action-grid-item:hover {
+  transform: translateY(-2px);
+  border-color: var(--accent-wa);
+  background: var(--bg-card-hover);
+}
+.action-icon-box {
+  width: 42px;
+  height: 42px;
+  border-radius: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.action-grid-item span {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  text-align: center;
+}
+
+/* Activity List */
+.section-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 14px;
+}
+.section-title {
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: -0.2px;
+}
+.activity-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 14px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  margin-bottom: 10px;
+}
+.act-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.act-icon {
+  width: 38px;
+  height: 38px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.05);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.act-title {
+  font-size: 13px;
+  font-weight: 600;
+}
+.act-time {
+  font-size: 11px;
+  color: var(--text-muted);
+}
+.act-amount {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  font-weight: 700;
+}
+.act-amount.plus { color: var(--success); }
+.act-amount.minus { color: var(--text-primary); }
+
+/* Bottom Nav Bar */
+.bottom-nav {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  height: var(--nav-height);
+  background: rgba(13, 21, 39, 0.92);
+  backdrop-filter: blur(16px);
+  border-top: 1px solid var(--border-subtle);
+  display: flex;
+  align-items: center;
+  justify-content: space-around;
+  z-index: 900;
+}
+.nav-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  background: transparent;
+  border: 0;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-family: var(--font-main);
+  font-size: 11px;
+  font-weight: 600;
+  transition: all 0.2s ease;
+}
+.nav-item:hover, .nav-item.active {
+  color: var(--accent-wa);
+}
+.nav-item.active .svg-icon {
+  stroke: var(--accent-wa);
+  stroke-width: 2.5;
+}
+
+/* ==========================================================================
+   MODAL DIALOGS & DRAWERS
+   ========================================================================== */
+.modal-overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.75);
+  backdrop-filter: blur(8px);
+  z-index: 2000;
+  display: flex;
+  align-items: flex-end;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.3s ease;
+}
+.modal-overlay.open {
+  opacity: 1;
+  pointer-events: auto;
+}
+.modal-sheet {
+  width: 100%;
+  background: var(--bg-surface);
+  border-top-left-radius: var(--radius-xl);
+  border-top-right-radius: var(--radius-xl);
+  border: 1px solid var(--border-subtle);
+  padding: 24px;
+  max-height: 85%;
+  overflow-y: auto;
+  transform: translateY(100%);
+  transition: transform 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.modal-overlay.open .modal-sheet {
+  transform: translateY(0);
+}
+.sheet-drag-handle {
+  width: 44px;
+  height: 5px;
+  background: var(--border-subtle);
+  border-radius: 99px;
+  margin: 0 auto 20px;
+}
+.sheet-title {
+  font-size: 18px;
+  font-weight: 700;
+  margin-bottom: 8px;
+}
+.sheet-desc {
+  font-size: 13px;
+  color: var(--text-secondary);
+  margin-bottom: 20px;
+}
+
+/* Toast Notifications */
+#app-toast {
+  position: absolute;
+  top: 50px;
+  left: 50%;
+  transform: translateX(-50%) translateY(-20px);
+  background: rgba(13, 21, 39, 0.95);
+  border: 1px solid var(--border-subtle);
+  backdrop-filter: blur(12px);
+  padding: 12px 20px;
+  border-radius: var(--radius-full);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 13px;
+  font-weight: 600;
+  box-shadow: var(--shadow-lg);
+  z-index: 3000;
+  opacity: 0;
+  pointer-events: none;
+  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  white-space: nowrap;
+}
+#app-toast.show {
+  opacity: 1;
+  pointer-events: auto;
+  transform: translateX(-50%) translateY(0);
+}
+#app-toast.toast-success { border-color: var(--success); color: var(--success); }
+#app-toast.toast-error { border-color: var(--danger); color: var(--danger); }
+#app-toast.toast-info { border-color: var(--accent-wa); color: var(--text-primary); }
+
+/* Delivery Status Indicator */
+.delivery-pill {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  font-size: 12px;
+  color: var(--text-secondary);
+  background: var(--bg-card);
+  border: 1px solid var(--border-subtle);
+  padding: 8px 14px;
+  border-radius: var(--radius-full);
+  margin-top: 14px;
+}
+.delivery-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--warning);
+}
+.delivery-dot.online {
+  background: var(--accent-wa);
+  box-shadow: 0 0 10px var(--accent-wa);
+}
+</style>
+</head>
+<body>
+
+<div class="viewport-wrapper">
+  <!-- Device Frame Simulator -->
+  <div class="device-frame">
+    <!-- Top Notch -->
+    <div class="device-notch">
+      <div class="notch-camera"></div>
+      <div class="notch-speaker"></div>
+    </div>
+
+    <!-- Status Bar -->
+    <div class="device-statusbar">
+      <span id="statusbar-time">09:41</span>
+      <div class="statusbar-icons">
+        <!-- Cellular SVG -->
+        <svg class="svg-icon svg-icon-sm" viewBox="0 0 24 24"><path d="M2 20h20L12 4z"/></svg>
+        <!-- Wifi SVG -->
+        <svg class="svg-icon svg-icon-sm" viewBox="0 0 24 24"><path d="M5 12.55a11 11 0 0 1 14.08 0M1.42 9a16 16 0 0 1 21.16 0M8.53 16.11a6 6 0 0 1 6.95 0M12 20h.01"/></svg>
+        <!-- Battery SVG -->
+        <svg class="svg-icon svg-icon-sm" viewBox="0 0 24 24"><rect width="16" height="10" x="2" y="7" rx="2"/><line x1="22" x2="22" y1="11" y2="13"/></svg>
+      </div>
+    </div>
+
+    <!-- Toast Notification -->
+    <div id="app-toast">
+      <span id="toast-icon"></span>
+      <span id="toast-text">Notification</span>
+    </div>
+
+    <!-- Main Viewport containing all Screens -->
+    <div class="app-viewport">
+
+      <!-- ===================================================================
+           SCREEN 1: SPLASH SCREEN
+           =================================================================== -->
+      <section class="screen active" id="screen-splash">
+        <div class="splash-logo-wrap">
+          <!-- Shield Key Icon -->
+          <svg class="svg-icon svg-icon-lg" viewBox="0 0 24 24">
+            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10"/>
+            <path d="m9 12 2 2 4-4"/>
+          </svg>
+        </div>
+        <h1 class="splash-title">FinVault Pro</h1>
+        <p class="splash-subtitle">Enterprise WhatsApp OTP Security</p>
+        <div class="splash-spinner"></div>
+      </section>
+
+      <!-- ===================================================================
+           SCREEN 2: LOGIN SCREEN
+           =================================================================== -->
+      <section class="screen" id="screen-login">
+        <div class="screen-topbar">
+          <div class="badge badge-info">
+            <svg class="svg-icon svg-icon-sm" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="m9 12 2 2 4-4"/></svg>
+            Gateway Active
+          </div>
+          <button class="btn-icon-back" onclick="openApiConfigModal()" title="API Gateway Config">
+            <svg class="svg-icon" viewBox="0 0 24 24"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg>
+          </button>
+        </div>
+
+        <div class="auth-header">
+          <h2 class="auth-title">Welcome back</h2>
+          <p class="auth-sub">Log in to manage your finances & test WhatsApp OTP.</p>
+        </div>
+
+        <form id="form-login" onsubmit="event.preventDefault(); handleLoginSubmit();">
+          <div class="form-group">
+            <label class="form-label">WhatsApp Number</label>
+            <div class="input-wrap">
+              <span class="input-icon-left">
+                <!-- Phone Icon -->
+                <svg class="svg-icon" viewBox="0 0 24 24"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
+              </span>
+              <input type="tel" class="input-control" id="login-phone" placeholder="03XXXXXXXXX or 923XXXXXXXXX" autocomplete="tel" required>
+            </div>
+          </div>
+
+          <div class="form-group" id="login-password-group">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+              <label class="form-label" style="margin:0;">Password</label>
+              <a href="javascript:void(0)" onclick="navigateTo('screen-forgot')" style="font-size:12px; color:var(--accent-wa); text-decoration:none; font-weight:600;">Forgot?</a>
+            </div>
+            <div class="input-wrap">
+              <span class="input-icon-left">
+                <!-- Lock Icon -->
+                <svg class="svg-icon" viewBox="0 0 24 24"><rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+              </span>
+              <input type="password" class="input-control" id="login-password" placeholder="••••••••" autocomplete="current-password">
+              <button type="button" class="input-toggle-btn" onclick="togglePasswordVisibility('login-password')">
+                <svg class="svg-icon svg-icon-sm" viewBox="0 0 24 24"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>
+              </button>
+            </div>
+          </div>
+
+          <button type="submit" class="btn-primary" id="btn-login-submit" style="margin-top:10px;">
+            <span>Log In</span>
+            <svg class="svg-icon" viewBox="0 0 24 24"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
+          </button>
+
+          <div style="text-align:center; margin:16px 0; color:var(--text-muted); font-size:12px;">— OR USE ONE-TOUCH —</div>
+
+          <button type="button" class="btn-secondary" onclick="handleOneTouchOtpLogin()">
+            <!-- WhatsApp Shield -->
+            <svg class="svg-icon" style="color:var(--accent-wa);" viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10"/></svg>
+            <span>Log In with WhatsApp OTP</span>
+          </button>
+        </form>
+
+        <div style="margin-top:auto; padding-top:24px; text-align:center;">
+          <p style="color:var(--text-secondary); font-size:13px;">
+            Don't have an account? 
+            <a href="javascript:void(0)" onclick="navigateTo('screen-signup')" style="color:var(--accent-wa); font-weight:700; text-decoration:none;">Create Account</a>
+          </p>
+        </div>
+      </section>
+
+      <!-- ===================================================================
+           SCREEN 3: SIGNUP SCREEN
+           =================================================================== -->
+      <section class="screen" id="screen-signup">
+        <div class="screen-topbar">
+          <button class="btn-icon-back" onclick="navigateTo('screen-login')">
+            <svg class="svg-icon" viewBox="0 0 24 24"><path d="m15 18-6-6 6-6"/></svg>
+          </button>
+          <span class="screen-title-center">Create Account</span>
+          <div style="width:40px;"></div>
+        </div>
+
+        <div class="auth-header">
+          <h2 class="auth-title">Register securely</h2>
+          <p class="auth-sub">Your number will be verified with a live WhatsApp OTP.</p>
+        </div>
+
+        <form id="form-signup" onsubmit="event.preventDefault(); handleSignupSubmit();">
+          <div class="form-group">
+            <label class="form-label">Full Name</label>
+            <div class="input-wrap">
+              <span class="input-icon-left">
+                <svg class="svg-icon" viewBox="0 0 24 24"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+              </span>
+              <input type="text" class="input-control" id="signup-name" placeholder="Muhammad Ali" required>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">WhatsApp Number</label>
+            <div class="input-wrap">
+              <span class="input-icon-left">
+                <svg class="svg-icon" viewBox="0 0 24 24"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
+              </span>
+              <input type="tel" class="input-control" id="signup-phone" placeholder="03XXXXXXXXX" required>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">Password</label>
+            <div class="input-wrap">
+              <span class="input-icon-left">
+                <svg class="svg-icon" viewBox="0 0 24 24"><rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+              </span>
+              <input type="password" class="input-control" id="signup-password" placeholder="At least 6 characters" minlength="6" required>
+              <button type="button" class="input-toggle-btn" onclick="togglePasswordVisibility('signup-password')">
+                <svg class="svg-icon svg-icon-sm" viewBox="0 0 24 24"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>
+              </button>
+            </div>
+          </div>
+
+          <button type="submit" class="btn-primary" id="btn-signup-submit" style="margin-top:14px;">
+            <span>Send WhatsApp Verification Code</span>
+            <svg class="svg-icon" viewBox="0 0 24 24"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
+          </button>
+        </form>
+
+        <div style="margin-top:auto; padding-top:20px; text-align:center;">
+          <p style="color:var(--text-secondary); font-size:13px;">
+            Already have an account? 
+            <a href="javascript:void(0)" onclick="navigateTo('screen-login')" style="color:var(--accent-wa); font-weight:700; text-decoration:none;">Log In</a>
+          </p>
+        </div>
+      </section>
+
+      <!-- ===================================================================
+           SCREEN 4: OTP VERIFICATION SCREEN
+           =================================================================== -->
+      <section class="screen" id="screen-otp">
+        <div class="screen-topbar">
+          <button class="btn-icon-back" onclick="navigateBackFromOtp()">
+            <svg class="svg-icon" viewBox="0 0 24 24"><path d="m15 18-6-6 6-6"/></svg>
+          </button>
+          <span class="screen-title-center">Enter Code</span>
+          <div style="width:40px;"></div>
+        </div>
+
+        <div style="text-align:center; margin-bottom:20px;">
+          <div style="width:64px; height:64px; border-radius:20px; background:rgba(37,211,102,0.12); border:1px solid rgba(37,211,102,0.3); color:var(--accent-wa); display:flex; align-items:center; justify-content:center; margin:0 auto 16px;">
+            <svg class="svg-icon svg-icon-lg" viewBox="0 0 24 24"><rect width="14" height="20" x="5" y="2" rx="2" ry="2"/><path d="M12 18h.01"/></svg>
+          </div>
+          <h2 style="font-size:22px; font-weight:800;">Verify WhatsApp</h2>
+          <p style="color:var(--text-secondary); font-size:13px; margin-top:6px;">
+            6-digit security code was sent to<br>
+            <b id="otp-target-display" style="color:var(--text-primary); font-family:var(--font-mono); font-size:14px;">+923000000000</b>
+          </p>
+        </div>
+
+        <!-- 6 OTP Pin Boxes -->
+        <div class="otp-boxes" id="otp-inputs-container">
+          <input type="text" maxlength="1" inputmode="numeric" class="otp-box" autofocus>
+          <input type="text" maxlength="1" inputmode="numeric" class="otp-box">
+          <input type="text" maxlength="1" inputmode="numeric" class="otp-box">
+          <input type="text" maxlength="1" inputmode="numeric" class="otp-box">
+          <input type="text" maxlength="1" inputmode="numeric" class="otp-box">
+          <input type="text" maxlength="1" inputmode="numeric" class="otp-box">
+        </div>
+
+        <button type="button" class="btn-primary" id="btn-verify-otp" onclick="handleVerifyOtpSubmit()">
+          <span>Verify & Continue</span>
+          <svg class="svg-icon" viewBox="0 0 24 24"><path d="m9 12 2 2 4-4"/></svg>
+        </button>
+
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-top:20px; font-size:13px;">
+          <span style="color:var(--text-muted);" id="resend-timer-text">Resend in 60s</span>
+          <button type="button" id="btn-resend-otp" onclick="handleResendOtp()" style="background:transparent; border:0; color:var(--accent-wa); font-weight:700; cursor:pointer;" disabled>
+            Resend Code
+          </button>
+        </div>
+
+        <div class="delivery-pill" id="otp-delivery-pill">
+          <div class="delivery-dot" id="delivery-dot-indicator"></div>
+          <span id="delivery-status-text">Connecting to WhatsApp bot...</span>
+        </div>
+      </section>
+
+      <!-- ===================================================================
+           SCREEN 5: FORGOT PASSWORD SCREEN
+           =================================================================== -->
+      <section class="screen" id="screen-forgot">
+        <div class="screen-topbar">
+          <button class="btn-icon-back" onclick="navigateTo('screen-login')">
+            <svg class="svg-icon" viewBox="0 0 24 24"><path d="m15 18-6-6 6-6"/></svg>
+          </button>
+          <span class="screen-title-center">Password Recovery</span>
+          <div style="width:40px;"></div>
+        </div>
+
+        <div class="auth-header">
+          <h2 class="auth-title">Forgot Password?</h2>
+          <p class="auth-sub">Enter your registered WhatsApp number to receive an authorization OTP.</p>
+        </div>
+
+        <form id="form-forgot" onsubmit="event.preventDefault(); handleForgotSubmit();">
+          <div class="form-group">
+            <label class="form-label">Registered WhatsApp Number</label>
+            <div class="input-wrap">
+              <span class="input-icon-left">
+                <svg class="svg-icon" viewBox="0 0 24 24"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
+              </span>
+              <input type="tel" class="input-control" id="forgot-phone" placeholder="03XXXXXXXXX" required>
+            </div>
+          </div>
+
+          <button type="submit" class="btn-primary" id="btn-forgot-submit" style="margin-top:14px;">
+            <span>Send Recovery OTP</span>
+            <svg class="svg-icon" viewBox="0 0 24 24"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
+          </button>
+        </form>
+      </section>
+
+      <!-- ===================================================================
+           SCREEN 6: RESET / CHANGE PASSWORD SCREEN
+           =================================================================== -->
+      <section class="screen" id="screen-reset-password">
+        <div class="screen-topbar">
+          <button class="btn-icon-back" onclick="navigateTo('screen-login')">
+            <svg class="svg-icon" viewBox="0 0 24 24"><path d="m15 18-6-6 6-6"/></svg>
+          </button>
+          <span class="screen-title-center">New Password</span>
+          <div style="width:40px;"></div>
+        </div>
+
+        <div class="auth-header">
+          <div class="badge badge-success" style="margin-bottom:10px;">
+            <svg class="svg-icon svg-icon-sm" viewBox="0 0 24 24"><path d="m9 12 2 2 4-4"/></svg>
+            Identity Verified
+          </div>
+          <h2 class="auth-title">Set new password</h2>
+          <p class="auth-sub">Choose a strong, secure password for your account.</p>
+        </div>
+
+        <form id="form-reset" onsubmit="event.preventDefault(); handleResetPasswordSubmit();">
+          <div class="form-group">
+            <label class="form-label">New Password</label>
+            <div class="input-wrap">
+              <span class="input-icon-left">
+                <svg class="svg-icon" viewBox="0 0 24 24"><rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+              </span>
+              <input type="password" class="input-control" id="reset-password-new" placeholder="At least 6 characters" minlength="6" required>
+              <button type="button" class="input-toggle-btn" onclick="togglePasswordVisibility('reset-password-new')">
+                <svg class="svg-icon svg-icon-sm" viewBox="0 0 24 24"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>
+              </button>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">Confirm New Password</label>
+            <div class="input-wrap">
+              <span class="input-icon-left">
+                <svg class="svg-icon" viewBox="0 0 24 24"><path d="m9 12 2 2 4-4"/><rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+              </span>
+              <input type="password" class="input-control" id="reset-password-confirm" placeholder="Repeat new password" minlength="6" required>
+            </div>
+          </div>
+
+          <button type="submit" class="btn-primary" id="btn-reset-submit" style="margin-top:14px;">
+            <span>Save & Log In</span>
+            <svg class="svg-icon" viewBox="0 0 24 24"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
+          </button>
+        </form>
+      </section>
+
+      <!-- ===================================================================
+           SCREEN 7: DASHBOARD SCREEN
+           =================================================================== -->
+      <section class="screen" id="screen-dashboard">
+        <div class="dashboard-content">
+          <!-- Top Bar -->
+          <div class="dash-user-bar">
+            <div class="user-info-group" onclick="switchNavTab('profile')">
+              <div class="avatar-ring" id="dash-avatar-initial">A</div>
+              <div class="user-texts">
+                <div class="greeting">Hello,</div>
+                <div class="user-name" id="dash-user-name">Muhammad Ali</div>
+              </div>
+            </div>
+            <div style="display:flex; gap:8px;">
+              <button class="btn-icon-back" onclick="toggleTheme()" title="Toggle Dark/Light Mode">
+                <svg class="svg-icon" viewBox="0 0 24 24" id="theme-icon"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/></svg>
+              </button>
+              <button class="btn-icon-back" onclick="openApiConfigModal()" title="API Gateway Config">
+                <svg class="svg-icon" viewBox="0 0 24 24"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg>
+              </button>
+            </div>
+          </div>
+
+          <!-- Account Card -->
+          <div class="wallet-card">
+            <div class="wallet-top">
+              <span>Main Debit Account</span>
+              <span class="badge badge-success">
+                <svg class="svg-icon svg-icon-sm" viewBox="0 0 24 24"><path d="m9 12 2 2 4-4"/></svg>
+                WhatsApp OTP Secured
+              </span>
+            </div>
+            <div class="balance-amt">PKR 148,250<span style="font-size:18px; color:var(--text-secondary);">.00</span></div>
+            <div class="wallet-actions">
+              <button class="wallet-action-btn" onclick="showFeatureModal('Send Money')">
+                <svg class="svg-icon" viewBox="0 0 24 24"><line x1="22" x2="11" y1="2" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+                <span>Send</span>
+              </button>
+              <button class="wallet-action-btn" onclick="showFeatureModal('Top Up')">
+                <svg class="svg-icon" viewBox="0 0 24 24"><line x1="12" x2="12" y1="5" y2="19"/><line x1="5" x2="19" y1="12" y2="12"/></svg>
+                <span>Top Up</span>
+              </button>
+              <button class="wallet-action-btn" onclick="triggerTestOtpFromDash()">
+                <svg class="svg-icon" style="color:var(--accent-wa);" viewBox="0 0 24 24"><rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+                <span>Test OTP</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- Quick Actions Grid -->
+          <div class="section-head">
+            <h3 class="section-title">Quick Actions</h3>
+          </div>
+          <div class="actions-grid">
+            <div class="action-grid-item" onclick="triggerTestOtpFromDash()">
+              <div class="action-icon-box" style="background:rgba(37,211,102,0.15); color:var(--accent-wa);">
+                <svg class="svg-icon" viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10"/><path d="m9 12 2 2 4-4"/></svg>
+              </div>
+              <span>Test OTP</span>
+            </div>
+            <div class="action-grid-item" onclick="showFeatureModal('Bill Payments')">
+              <div class="action-icon-box" style="background:rgba(59,130,246,0.15); color:#3b82f6;">
+                <svg class="svg-icon" viewBox="0 0 24 24"><path d="M4 2v20l2-1 2 1 2-1 2 1 2-1 2 1 2-1 2 1V2l-2 1-2-1-2 1-2-1-2 1-2-1-2 1Z"/><path d="M14 8H8"/><path d="M16 12H8"/><path d="M13 16H8"/></svg>
+              </div>
+              <span>Bills</span>
+            </div>
+            <div class="action-grid-item" onclick="showFeatureModal('Mobile Recharge')">
+              <div class="action-icon-box" style="background:rgba(245,158,11,0.15); color:#f59e0b;">
+                <svg class="svg-icon" viewBox="0 0 24 24"><rect width="14" height="20" x="5" y="2" rx="2" ry="2"/><path d="M12 18h.01"/></svg>
+              </div>
+              <span>Mobile</span>
+            </div>
+            <div class="action-grid-item" onclick="switchNavTab('profile')">
+              <div class="action-icon-box" style="background:rgba(168,85,247,0.15); color:#a855f7;">
+                <svg class="svg-icon" viewBox="0 0 24 24"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+              </div>
+              <span>Security</span>
+            </div>
+          </div>
+
+          <!-- Recent Activity -->
+          <div class="section-head">
+            <h3 class="section-title">Recent Activity</h3>
+            <a href="javascript:void(0)" onclick="toast('Statement downloaded','success')" style="font-size:12px; color:var(--accent-wa); text-decoration:none; font-weight:600;">View All</a>
+          </div>
+
+          <div class="activity-item">
+            <div class="act-left">
+              <div class="act-icon" style="color:var(--success);">
+                <svg class="svg-icon" viewBox="0 0 24 24"><line x1="12" x2="12" y1="19" y2="5"/><polyline points="5 12 12 5 19 12"/></svg>
+              </div>
+              <div>
+                <div class="act-title">WhatsApp OTP Login</div>
+                <div class="act-time" id="act-time-1">Just now</div>
+              </div>
+            </div>
+            <div class="badge badge-success">Verified</div>
+          </div>
+
+          <div class="activity-item">
+            <div class="act-left">
+              <div class="act-icon" style="color:var(--accent-wa);">
+                <svg class="svg-icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="m9 12 2 2 4-4"/></svg>
+              </div>
+              <div>
+                <div class="act-title">Account Creation</div>
+                <div class="act-time">Today, 11:20 AM</div>
+              </div>
+            </div>
+            <div class="act-amount plus">+50,000</div>
+          </div>
+
+          <div class="activity-item">
+            <div class="act-left">
+              <div class="act-icon" style="color:var(--text-muted);">
+                <svg class="svg-icon" viewBox="0 0 24 24"><rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+              </div>
+              <div>
+                <div class="act-title">Security Key Check</div>
+                <div class="act-time">Active v2.0</div>
+              </div>
+            </div>
+            <div class="badge badge-info">Pass</div>
+          </div>
+        </div>
+
+        <!-- Bottom Navigation Bar -->
+        <nav class="bottom-nav">
+          <button class="nav-item active" onclick="switchNavTab('home')">
+            <svg class="svg-icon" viewBox="0 0 24 24"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+            <span>Home</span>
+          </button>
+          <button class="nav-item" onclick="showFeatureModal('Cards & Wallet')">
+            <svg class="svg-icon" viewBox="0 0 24 24"><rect width="20" height="14" x="2" y="5" rx="2"/><line x1="2" x2="22" y1="10" y2="10"/></svg>
+            <span>Cards</span>
+          </button>
+          <button class="nav-item" onclick="triggerTestOtpFromDash()">
+            <svg class="svg-icon" viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10"/></svg>
+            <span>OTP Test</span>
+          </button>
+          <button class="nav-item" onclick="switchNavTab('profile')">
+            <svg class="svg-icon" viewBox="0 0 24 24"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+            <span>Profile</span>
+          </button>
+        </nav>
+      </section>
+
+      <!-- ===================================================================
+           SCREEN 8: PROFILE SCREEN
+           =================================================================== -->
+      <section class="screen" id="screen-profile">
+        <div class="screen-topbar">
+          <button class="btn-icon-back" onclick="switchNavTab('home')">
+            <svg class="svg-icon" viewBox="0 0 24 24"><path d="m15 18-6-6 6-6"/></svg>
+          </button>
+          <span class="screen-title-center">Profile & Security</span>
+          <button class="btn-icon-back" onclick="openApiConfigModal()" title="API Config">
+            <svg class="svg-icon" viewBox="0 0 24 24"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg>
+          </button>
+        </div>
+
+        <div style="text-align:center; margin-bottom:24px;">
+          <div class="avatar-ring" style="width:72px; height:72px; font-size:28px; margin:0 auto 12px;" id="profile-avatar-display">M</div>
+          <h2 style="font-size:18px; font-weight:700;" id="profile-name-display">Muhammad Ali</h2>
+          <p style="color:var(--text-secondary); font-size:13px; font-family:var(--font-mono);" id="profile-phone-display">+923000000000</p>
+          <div style="margin-top:8px;">
+            <span class="badge badge-success">
+              <svg class="svg-icon svg-icon-sm" viewBox="0 0 24 24"><path d="m9 12 2 2 4-4"/></svg>
+              WhatsApp Verified
+            </span>
+          </div>
+        </div>
+
+        <!-- Profile Settings Cards -->
+        <div class="card-glass" style="margin-bottom:14px;">
+          <div style="font-size:12px; font-weight:700; color:var(--text-muted); text-transform:uppercase; margin-bottom:12px;">Security & Password</div>
+          
+          <div style="display:flex; justify-content:space-between; align-items:center; padding:10px 0; border-bottom:1px solid var(--border-subtle); cursor:pointer;" onclick="promptChangePasswordModal()">
+            <div style="display:flex; align-items:center; gap:12px;">
+              <svg class="svg-icon" style="color:var(--accent-wa);" viewBox="0 0 24 24"><rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+              <div>
+                <div style="font-weight:600; font-size:13px;">Change Password</div>
+                <div style="font-size:11px; color:var(--text-muted);">Protected by WhatsApp OTP</div>
+              </div>
+            </div>
+            <svg class="svg-icon svg-icon-sm" viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></svg>
+          </div>
+
+          <div style="display:flex; justify-content:space-between; align-items:center; padding:10px 0; cursor:pointer;" onclick="openApiConfigModal()">
+            <div style="display:flex; align-items:center; gap:12px;">
+              <svg class="svg-icon" style="color:var(--info);" viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10"/></svg>
+              <div>
+                <div style="font-weight:600; font-size:13px;">OTP API Key Configuration</div>
+                <div style="font-size:11px; color:var(--text-muted);">Key: 3ced2f...91a0</div>
+              </div>
+            </div>
+            <svg class="svg-icon svg-icon-sm" viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></svg>
+          </div>
+        </div>
+
+        <div class="card-glass" style="margin-bottom:24px;">
+          <div style="font-size:12px; font-weight:700; color:var(--text-muted); text-transform:uppercase; margin-bottom:12px;">Appearance</div>
+          <div style="display:flex; justify-content:space-between; align-items:center; padding:6px 0;">
+            <div style="display:flex; align-items:center; gap:12px;">
+              <svg class="svg-icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2"/></svg>
+              <div style="font-weight:600; font-size:13px;">Theme Mode</div>
+            </div>
+            <button class="btn-secondary" style="width:auto; height:34px; padding:0 14px; font-size:12px;" onclick="toggleTheme()" id="theme-toggle-btn">
+              Dark Mode
+            </button>
+          </div>
+        </div>
+
+        <button type="button" class="btn-secondary" style="color:var(--danger); border-color:rgba(239,68,68,0.3); background:rgba(239,68,68,0.05);" onclick="openLogoutModal()">
+          <svg class="svg-icon" viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" x2="9" y1="12" y2="12"/></svg>
+          <span>Log Out of FinVault</span>
+        </button>
+      </section>
+
+    </div><!-- End App Viewport -->
+  </div><!-- End Device Frame -->
+</div><!-- End Viewport Wrapper -->
+
+<!-- ===================================================================
+     MODAL 1: API CONFIGURATION MODAL
+     =================================================================== -->
+<div class="modal-overlay" id="modal-api-config" onclick="if(event.target===this)closeModal('modal-api-config')">
+  <div class="modal-sheet">
+    <div class="sheet-drag-handle"></div>
+    <h3 class="sheet-title">API Gateway Settings</h3>
+    <p class="sheet-desc">Configure the OTP Pro Server Base URL and API Key for live sending.</p>
+
+    <div class="form-group">
+      <label class="form-label">Gateway Base URL</label>
+      <div class="input-wrap">
+        <input type="text" class="input-control" id="config-base-url" placeholder="http://localhost:3000 or your botkeep URL">
+      </div>
+      <small style="color:var(--text-muted); font-size:11px; margin-top:4px; display:block;">Default uses current website origin automatically.</small>
+    </div>
+
+    <div class="form-group">
+      <label class="form-label">Live API Key (x-api-key)</label>
+      <div class="input-wrap">
+        <input type="text" class="input-control" id="config-api-key" placeholder="3ced2f73b6e9c74f4e17c77018f4bde1ea11947af9d0c61e5d883fa9297091a0">
+      </div>
+      <small style="color:var(--accent-wa); font-size:11px; margin-top:4px; display:block;">Pre-configured with your dedicated WhatsApp OTP key.</small>
+    </div>
+
+    <div style="display:flex; gap:10px; margin-top:20px;">
+      <button type="button" class="btn-secondary" onclick="closeModal('modal-api-config')">Cancel</button>
+      <button type="button" class="btn-primary" onclick="saveApiConfig()">Save Configuration</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===================================================================
+     MODAL 2: LOGOUT CONFIRMATION
+     =================================================================== -->
+<div class="modal-overlay" id="modal-logout" onclick="if(event.target===this)closeModal('modal-logout')">
+  <div class="modal-sheet" style="text-align:center;">
+    <div class="sheet-drag-handle"></div>
+    <div style="width:54px; height:54px; border-radius:50%; background:rgba(239,68,68,0.12); color:var(--danger); display:flex; align-items:center; justify-content:center; margin:0 auto 14px;">
+      <svg class="svg-icon svg-icon-lg" viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" x2="9" y1="12" y2="12"/></svg>
+    </div>
+    <h3 class="sheet-title">Log out of your account?</h3>
+    <p class="sheet-desc">You will need your phone number and password or WhatsApp OTP to log back in.</p>
+    <div style="display:flex; gap:10px; margin-top:14px;">
+      <button type="button" class="btn-secondary" onclick="closeModal('modal-logout')">Cancel</button>
+      <button type="button" class="btn-primary" style="background:var(--danger); color:#fff; box-shadow:none;" onclick="confirmLogout()">Log Out</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===================================================================
+     MODAL 3: GENERIC FEATURE DEMO
+     =================================================================== -->
+<div class="modal-overlay" id="modal-feature" onclick="if(event.target===this)closeModal('modal-feature')">
+  <div class="modal-sheet" style="text-align:center;">
+    <div class="sheet-drag-handle"></div>
+    <div style="width:50px; height:50px; border-radius:18px; background:rgba(37,211,102,0.15); color:var(--accent-wa); display:flex; align-items:center; justify-content:center; margin:0 auto 14px;">
+      <svg class="svg-icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="m9 12 2 2 4-4"/></svg>
+    </div>
+    <h3 class="sheet-title" id="feature-modal-title">Feature Demo</h3>
+    <p class="sheet-desc" id="feature-modal-desc">This banking operation is secured with WhatsApp OTP gateway verification.</p>
+    <button type="button" class="btn-primary" onclick="closeModal('modal-feature')">Got It</button>
+  </div>
+</div>
+
+<!-- ===================================================================
+     JAVASCRIPT LOGIC & GATEWAY CLIENT
+     =================================================================== -->
+<script>
+/* ==========================================================================
+   CONFIG & STORAGE
+   ========================================================================== */
+const DEFAULT_API_KEY = '3ced2f73b6e9c74f4e17c77018f4bde1ea11947af9d0c61e5d883fa9297091a0';
+
+let APP_STATE = {
+  baseUrl: localStorage.getItem('finvault_base_url') || window.location.origin,
+  apiKey: localStorage.getItem('finvault_api_key') || DEFAULT_API_KEY,
+  currentUser: null,
+  otpContext: null, // 'signup' | 'login' | 'reset' | 'test'
+  pendingData: null,
+  resendCountdown: 60,
+  resendTimerId: null
+};
+
+// Update statusbar clock
+function updateClock() {
+  const now = new Date();
+  const h = String(now.getHours()).padStart(2, '0');
+  const m = String(now.getMinutes()).padStart(2, '0');
+  const el = document.getElementById('statusbar-time');
+  if (el) el.textContent = `${h}:${m}`;
+}
+setInterval(updateClock, 1000);
+updateClock();
+
+/* ==========================================================================
+   NAVIGATION SYSTEM
+   ========================================================================== */
+function navigateTo(screenId) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  const target = document.getElementById(screenId);
+  if (target) {
+    target.classList.add('active');
+    document.querySelector('.app-viewport').scrollTop = 0;
+  }
+}
+
+function switchNavTab(tabName) {
+  document.querySelectorAll('.nav-item').forEach(item => {
+    item.classList.toggle('active', item.textContent.toLowerCase().includes(tabName));
+  });
+  if (tabName === 'home') navigateTo('screen-dashboard');
+  if (tabName === 'profile') navigateTo('screen-profile');
+}
+
+function navigateBackFromOtp() {
+  if (APP_STATE.otpContext === 'signup') navigateTo('screen-signup');
+  else if (APP_STATE.otpContext === 'forgot' || APP_STATE.otpContext === 'reset') navigateTo('screen-forgot');
+  else navigateTo('screen-login');
+}
+
+/* ==========================================================================
+   TOAST HELPER
+   ========================================================================== */
+let toastTimeout = null;
+function toast(message, type = 'info') {
+  const el = document.getElementById('app-toast');
+  const txt = document.getElementById('toast-text');
+  const icon = document.getElementById('toast-icon');
+
+  txt.textContent = message;
+  el.className = 'show';
+  if (type === 'success') {
+    el.classList.add('toast-success');
+    icon.innerHTML = '<svg class="svg-icon svg-icon-sm" viewBox="0 0 24 24"><path d="m9 12 2 2 4-4"/></svg>';
+  } else if (type === 'error') {
+    el.classList.add('toast-error');
+    icon.innerHTML = '<svg class="svg-icon svg-icon-sm" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" x2="12" y1="8" y2="12"/><line x1="12" x2="12.01" y1="16" y2="16"/></svg>';
+  } else {
+    el.classList.add('toast-info');
+    icon.innerHTML = '<svg class="svg-icon svg-icon-sm" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>';
+  }
+
+  clearTimeout(toastTimeout);
+  toastTimeout = setTimeout(() => {
+    el.className = '';
+  }, 3500);
+}
+
+/* ==========================================================================
+   PASSWORD TOGGLE
+   ========================================================================== */
+function togglePasswordVisibility(inputId) {
+  const input = document.getElementById(inputId);
+  if (!input) return;
+  input.type = input.type === 'password' ? 'text' : 'password';
+}
+
+/* ==========================================================================
+   PHONE NORMALIZER
+   ========================================================================== */
+function cleanPhoneNumber(input) {
+  let n = String(input || '').replace(/\D/g, '');
+  if (n.startsWith('00')) n = n.slice(2);
+  if (n.startsWith('0') && n.length === 11) n = '92' + n.slice(1);
+  if (n.startsWith('920')) n = '92' + n.slice(3);
+  return n;
+}
+
+/* ==========================================================================
+   WHATSAPP OTP GATEWAY API CALLS
+   ========================================================================== */
+async function callSendOtpApi(phoneNumber) {
+  const url = `${APP_STATE.baseUrl.replace(/\/+$/, '')}/api/v1/send-otp`;
+  const response = await fetch(url, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'x-api-key': APP_STATE.apiKey
+    },
+    body: JSON.stringify({ number: phoneNumber })
+  });
+
+  const data = await response.json();
+  if (!response.ok || !data.ok) {
+    throw new Error(data.error || 'Failed to send verification code.');
+  }
+  return data;
+}
+
+async function callVerifyOtpApi(phoneNumber, otpCode) {
+  const url = `${APP_STATE.baseUrl.replace(/\/+$/, '')}/api/v1/verify-otp`;
+  const response = await fetch(url, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'x-api-key': APP_STATE.apiKey
+    },
+    body: JSON.stringify({ number: phoneNumber, otp: otpCode })
+  });
+
+  const data = await response.json();
+  if (!response.ok || !data.ok) {
+    throw new Error(data.error || 'Invalid or expired code.');
+  }
+  return data;
+}
+
+/* ==========================================================================
+   OTP PIN BOX AUTO-FOCUS & PASTE HANDLER
+   ========================================================================== */
+const otpBoxes = document.querySelectorAll('.otp-box');
+otpBoxes.forEach((box, index) => {
+  box.addEventListener('input', (e) => {
+    const val = e.target.value.replace(/\D/g, '');
+    e.target.value = val ? val[0] : '';
+
+    if (e.target.value) {
+      box.classList.add('filled');
+      if (index < otpBoxes.length - 1) otpBoxes[index + 1].focus();
+    } else {
+      box.classList.remove('filled');
+    }
+
+    // Auto-submit if all 6 boxes filled
+    if (getEnteredOtp().length === 6) {
+      handleVerifyOtpSubmit();
+    }
+  });
+
+  box.addEventListener('keydown', (e) => {
+    if (e.key === 'Backspace' && !box.value && index > 0) {
+      otpBoxes[index - 1].focus();
+      otpBoxes[index - 1].value = '';
+      otpBoxes[index - 1].classList.remove('filled');
+    }
+  });
+
+  // Handle Clipboard Paste
+  box.addEventListener('paste', (e) => {
+    e.preventDefault();
+    const pasted = (e.clipboardData || window.clipboardData).getData('text').replace(/\D/g, '').slice(0, 6);
+    if (!pasted) return;
+    pasted.split('').forEach((char, i) => {
+      if (otpBoxes[i]) {
+        otpBoxes[i].value = char;
+        otpBoxes[i].classList.add('filled');
+      }
+    });
+    if (otpBoxes[pasted.length - 1]) otpBoxes[pasted.length - 1].focus();
+    if (pasted.length === 6) handleVerifyOtpSubmit();
+  });
+});
+
+function getEnteredOtp() {
+  let code = '';
+  otpBoxes.forEach(b => code += b.value.trim());
+  return code;
+}
+
+function clearOtpBoxes() {
+  otpBoxes.forEach(b => { b.value = ''; b.classList.remove('filled'); });
+  if (otpBoxes[0]) otpBoxes[0].focus();
+}
+
+function startOtpCountdown(sec = 60) {
+  clearInterval(APP_STATE.resendTimerId);
+  APP_STATE.resendCountdown = sec;
+  const timerText = document.getElementById('resend-timer-text');
+  const resendBtn = document.getElementById('btn-resend-otp');
+
+  resendBtn.disabled = true;
+  timerText.textContent = `Resend in ${APP_STATE.resendCountdown}s`;
+
+  APP_STATE.resendTimerId = setInterval(() => {
+    APP_STATE.resendCountdown--;
+    if (APP_STATE.resendCountdown <= 0) {
+      clearInterval(APP_STATE.resendTimerId);
+      timerText.textContent = 'Code not received?';
+      resendBtn.disabled = false;
+    } else {
+      timerText.textContent = `Resend in ${APP_STATE.resendCountdown}s`;
+    }
+  }, 1000);
+}
+
+/* ==========================================================================
+   AUTH FLOWS (LOGIN, SIGNUP, FORGOT, RESET)
+   ========================================================================== */
+
+// 1. Regular Password Login
+function handleLoginSubmit() {
+  const phone = cleanPhoneNumber(document.getElementById('login-phone').value);
+  const password = document.getElementById('login-password').value;
+
+  if (phone.length < 11) {
+    toast('Please enter a valid WhatsApp number', 'error');
+    return;
+  }
+
+  // Check saved user in localStorage
+  const savedUsers = JSON.parse(localStorage.getItem('finvault_users') || '[]');
+  const user = savedUsers.find(u => u.phone === phone);
+
+  if (user && user.password === password) {
+    authenticateUser(user);
+    toast('Logged in successfully!', 'success');
+  } else if (!user) {
+    // Demo helper: If not found, offer OTP login
+    toast('User not found. Use WhatsApp OTP Login or Sign Up.', 'error');
+  } else {
+    toast('Incorrect password. Try WhatsApp OTP Login.', 'error');
+  }
+}
+
+// 2. One-Touch WhatsApp OTP Login
+async function handleOneTouchOtpLogin() {
+  const phone = cleanPhoneNumber(document.getElementById('login-phone').value);
+  if (phone.length < 11) {
+    toast('Enter your WhatsApp number first', 'error');
+    document.getElementById('login-phone').focus();
+    return;
+  }
+
+  const btn = document.querySelector('#form-login button.btn-secondary');
+  const origText = btn.innerHTML;
+  btn.disabled = true;
+  btn.innerHTML = '<span>Requesting OTP...</span>';
+
+  try {
+    const res = await callSendOtpApi(phone);
+    APP_STATE.otpContext = 'login';
+    APP_STATE.pendingData = { phone };
+
+    document.getElementById('otp-target-display').textContent = `+${res.number || phone}`;
+    clearOtpBoxes();
+    startOtpCountdown(60);
+    navigateTo('screen-otp');
+    toast('Security code sent to your WhatsApp!', 'success');
+    updateDeliveryIndicator(true);
+  } catch (err) {
+    toast(err.message, 'error');
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = origText;
+  }
+}
+
+// 3. Signup Submit -> Triggers Real WhatsApp OTP
+async function handleSignupSubmit() {
+  const name = document.getElementById('signup-name').value.trim();
+  const phone = cleanPhoneNumber(document.getElementById('signup-phone').value);
+  const password = document.getElementById('signup-password').value;
+
+  if (!name) { toast('Please enter your full name', 'error'); return; }
+  if (phone.length < 11) { toast('Please enter a valid phone number', 'error'); return; }
+  if (password.length < 6) { toast('Password must be at least 6 characters', 'error'); return; }
+
+  const submitBtn = document.getElementById('btn-signup-submit');
+  submitBtn.disabled = true;
+  submitBtn.innerHTML = '<span>Sending WhatsApp Code...</span>';
+
+  try {
+    const res = await callSendOtpApi(phone);
+    APP_STATE.otpContext = 'signup';
+    APP_STATE.pendingData = { name, phone, password };
+
+    document.getElementById('otp-target-display').textContent = `+${res.number || phone}`;
+    clearOtpBoxes();
+    startOtpCountdown(60);
+    navigateTo('screen-otp');
+    toast('WhatsApp verification code sent!', 'success');
+    updateDeliveryIndicator(true);
+  } catch (err) {
+    toast(err.message, 'error');
+  } finally {
+    submitBtn.disabled = false;
+    submitBtn.innerHTML = `<span>Send WhatsApp Verification Code</span><svg class="svg-icon" viewBox="0 0 24 24"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>`;
+  }
+}
+
+// 4. Verify OTP Submit Handler
+async function handleVerifyOtpSubmit() {
+  const otpCode = getEnteredOtp();
+  if (otpCode.length < 6) {
+    toast('Please enter complete 6-digit code', 'error');
+    return;
+  }
+
+  const phone = APP_STATE.pendingData?.phone;
+  if (!phone) {
+    toast('Session expired. Please retry.', 'error');
+    navigateTo('screen-login');
+    return;
+  }
+
+  const verifyBtn = document.getElementById('btn-verify-otp');
+  verifyBtn.disabled = true;
+  verifyBtn.innerHTML = '<span>Verifying Code...</span>';
+
+  try {
+    await callVerifyOtpApi(phone, otpCode);
+    toast('WhatsApp Number Verified! ✓', 'success');
+
+    if (APP_STATE.otpContext === 'signup') {
+      // Save new user account
+      const newUser = {
+        name: APP_STATE.pendingData.name,
+        phone: APP_STATE.pendingData.phone,
+        password: APP_STATE.pendingData.password,
+        createdAt: Date.now()
+      };
+      const users = JSON.parse(localStorage.getItem('finvault_users') || '[]');
+      const filtered = users.filter(u => u.phone !== newUser.phone);
+      filtered.push(newUser);
+      localStorage.setItem('finvault_users', JSON.stringify(filtered));
+
+      authenticateUser(newUser);
+    } else if (APP_STATE.otpContext === 'login') {
+      let users = JSON.parse(localStorage.getItem('finvault_users') || '[]');
+      let user = users.find(u => u.phone === phone);
+      if (!user) {
+        user = { name: 'Verified User', phone, password: '' };
+        users.push(user);
+        localStorage.setItem('finvault_users', JSON.stringify(users));
+      }
+      authenticateUser(user);
+    } else if (APP_STATE.otpContext === 'forgot') {
+      navigateTo('screen-reset-password');
+    } else if (APP_STATE.otpContext === 'test') {
+      toast('Test OTP Verification Successful!', 'success');
+      navigateTo('screen-dashboard');
+    }
+  } catch (err) {
+    toast(err.message || 'Wrong code entered', 'error');
+    clearOtpBoxes();
+  } finally {
+    verifyBtn.disabled = false;
+    verifyBtn.innerHTML = '<span>Verify & Continue</span><svg class="svg-icon" viewBox="0 0 24 24"><path d="m9 12 2 2 4-4"/></svg>';
+  }
+}
+
+// 5. Resend OTP Handler
+async function handleResendOtp() {
+  const phone = APP_STATE.pendingData?.phone;
+  if (!phone) return;
+  toast('Resending WhatsApp code...', 'info');
+  try {
+    await callSendOtpApi(phone);
+    startOtpCountdown(60);
+    clearOtpBoxes();
+    toast('Fresh code dispatched on WhatsApp!', 'success');
+  } catch (err) {
+    toast(err.message, 'error');
+  }
+}
+
+// 6. Forgot Password Submit
+async function handleForgotSubmit() {
+  const phone = cleanPhoneNumber(document.getElementById('forgot-phone').value);
+  if (phone.length < 11) {
+    toast('Please enter your WhatsApp number', 'error');
+    return;
+  }
+
+  const btn = document.getElementById('btn-forgot-submit');
+  btn.disabled = true;
+  btn.innerHTML = '<span>Sending WhatsApp OTP...</span>';
+
+  try {
+    const res = await callSendOtpApi(phone);
+    APP_STATE.otpContext = 'forgot';
+    APP_STATE.pendingData = { phone };
+
+    document.getElementById('otp-target-display').textContent = `+${res.number || phone}`;
+    clearOtpBoxes();
+    startOtpCountdown(60);
+    navigateTo('screen-otp');
+    toast('Recovery code sent to WhatsApp!', 'success');
+    updateDeliveryIndicator(true);
+  } catch (err) {
+    toast(err.message, 'error');
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = '<span>Send Recovery OTP</span><svg class="svg-icon" viewBox="0 0 24 24"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>';
+  }
+}
+
+// 7. Reset Password Submit
+function handleResetPasswordSubmit() {
+  const newPass = document.getElementById('reset-password-new').value;
+  const confirmPass = document.getElementById('reset-password-confirm').value;
+
+  if (newPass.length < 6) {
+    toast('Password must be at least 6 characters', 'error');
+    return;
+  }
+  if (newPass !== confirmPass) {
+    toast('Passwords do not match', 'error');
+    return;
+  }
+
+  const phone = APP_STATE.pendingData?.phone;
+  let users = JSON.parse(localStorage.getItem('finvault_users') || '[]');
+  let user = users.find(u => u.phone === phone);
+
+  if (user) {
+    user.password = newPass;
+    localStorage.setItem('finvault_users', JSON.stringify(users));
+  } else {
+    user = { name: 'User', phone, password: newPass };
+    users.push(user);
+    localStorage.setItem('finvault_users', JSON.stringify(users));
+  }
+
+  toast('Password updated successfully! Please log in.', 'success');
+  navigateTo('screen-login');
+}
+
+/* ==========================================================================
+   USER AUTHENTICATION & DASHBOARD BINDING
+   ========================================================================== */
+function authenticateUser(user) {
+  APP_STATE.currentUser = user;
+  localStorage.setItem('finvault_session', JSON.stringify(user));
+
+  // Update UI Elements
+  const initials = user.name ? user.name.split(' ').map(n=>n[0]).join('').toUpperCase().slice(0, 2) : 'U';
+  document.getElementById('dash-avatar-initial').textContent = initials;
+  document.getElementById('dash-user-name').textContent = user.name || 'User';
+
+  document.getElementById('profile-avatar-display').textContent = initials;
+  document.getElementById('profile-name-display').textContent = user.name || 'User';
+  document.getElementById('profile-phone-display').textContent = `+${user.phone}`;
+
+  navigateTo('screen-dashboard');
+}
+
+function confirmLogout() {
+  closeModal('modal-logout');
+  APP_STATE.currentUser = null;
+  localStorage.removeItem('finvault_session');
+  toast('Signed out successfully', 'info');
+  navigateTo('screen-login');
+}
+
+function promptChangePasswordModal() {
+  if (!APP_STATE.currentUser?.phone) {
+    toast('No phone number on session', 'error');
+    return;
+  }
+  document.getElementById('forgot-phone').value = APP_STATE.currentUser.phone;
+  navigateTo('screen-forgot');
+}
+
+// Test OTP directly from dashboard
+async function triggerTestOtpFromDash() {
+  const phone = APP_STATE.currentUser?.phone;
+  if (!phone) {
+    toast('Please log in with a phone number', 'error');
+    return;
+  }
+  toast(`Sending test WhatsApp OTP to +${phone}...`, 'info');
+  try {
+    const res = await callSendOtpApi(phone);
+    APP_STATE.otpContext = 'test';
+    APP_STATE.pendingData = { phone };
+    document.getElementById('otp-target-display').textContent = `+${res.number || phone}`;
+    clearOtpBoxes();
+    startOtpCountdown(60);
+    navigateTo('screen-otp');
+    toast('Test code dispatched to WhatsApp! Check chat.', 'success');
+  } catch (err) {
+    toast(err.message, 'error');
+  }
+}
+
+function updateDeliveryIndicator(isOnline) {
+  const dot = document.getElementById('delivery-dot-indicator');
+  const text = document.getElementById('delivery-status-text');
+  if (isOnline) {
+    dot.className = 'delivery-dot online';
+    text.textContent = 'WhatsApp Gateway Connected • 100% Delivery';
+  } else {
+    dot.className = 'delivery-dot';
+    text.textContent = 'Waiting for gateway confirmation...';
+  }
+}
+
+/* ==========================================================================
+   MODAL CONTROLS
+   ========================================================================== */
+function openModal(id) {
+  const m = document.getElementById(id);
+  if (m) m.classList.add('open');
+}
+function closeModal(id) {
+  const m = document.getElementById(id);
+  if (m) m.classList.remove('open');
+}
+
+function openLogoutModal() { openModal('modal-logout'); }
+function openApiConfigModal() {
+  document.getElementById('config-base-url').value = APP_STATE.baseUrl;
+  document.getElementById('config-api-key').value = APP_STATE.apiKey;
+  openModal('modal-api-config');
+}
+function saveApiConfig() {
+  const url = document.getElementById('config-base-url').value.trim() || window.location.origin;
+  const key = document.getElementById('config-api-key').value.trim() || DEFAULT_API_KEY;
+
+  APP_STATE.baseUrl = url;
+  APP_STATE.apiKey = key;
+
+  localStorage.setItem('finvault_base_url', url);
+  localStorage.setItem('finvault_api_key', key);
+
+  closeModal('modal-api-config');
+  toast('API Gateway Configuration Saved!', 'success');
+}
+
+function showFeatureModal(title) {
+  document.getElementById('feature-modal-title').textContent = title;
+  document.getElementById('feature-modal-desc').textContent = `${title} is protected with high-security WhatsApp OTP 2-Factor Authentication.`;
+  openModal('modal-feature');
+}
+
+/* ==========================================================================
+   THEME TOGGLE
+   ========================================================================== */
+function toggleTheme() {
+  const html = document.documentElement;
+  const isDark = html.getAttribute('data-theme') === 'dark';
+  const newTheme = isDark ? 'light' : 'dark';
+  html.setAttribute('data-theme', newTheme);
+  localStorage.setItem('finvault_theme', newTheme);
+
+  const btn = document.getElementById('theme-toggle-btn');
+  if (btn) btn.textContent = isDark ? 'Light Mode' : 'Dark Mode';
+  toast(`Switched to ${newTheme} theme`, 'info');
+}
+
+/* ==========================================================================
+   APP INITIALIZATION
+   ========================================================================== */
+window.addEventListener('DOMContentLoaded', () => {
+  // Restore saved theme
+  const savedTheme = localStorage.getItem('finvault_theme') || 'dark';
+  document.documentElement.setAttribute('data-theme', savedTheme);
+  const themeBtn = document.getElementById('theme-toggle-btn');
+  if (themeBtn) themeBtn.textContent = savedTheme === 'dark' ? 'Dark Mode' : 'Light Mode';
+
+  // Check saved session
+  setTimeout(() => {
+    const session = localStorage.getItem('finvault_session');
+    if (session) {
+      try {
+        const user = JSON.parse(session);
+        authenticateUser(user);
+      } catch (e) {
+        navigateTo('screen-login');
+      }
+    } else {
+      navigateTo('screen-login');
+    }
+  }, 1400); // 1.4s animated splash screen
+});
+</script>
+</body>
+</html>

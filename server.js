@@ -271,47 +271,57 @@ async function startBot(botId) {
   try { fs.mkdirSync(botAuth,{recursive:true}) } catch {}
 
   const credsFile = path.join(botAuth,'creds.json')
-  const isLinked  = () => { try { const c=JSON.parse(fs.readFileSync(credsFile,'utf8')); return !!(c.registered||c.account) } catch { return false } }
+  const isLinked  = () => {
+    try { const c=JSON.parse(fs.readFileSync(credsFile,'utf8')); return !!(c.registered||c.account) }
+    catch { return false }
+  }
 
   const linkedAtStart = isLinked()
-  if (linkedAtStart) { bot.autoLinkTries=0 }
-  else {
+  if (linkedAtStart) {
+    bot.autoLinkTries = 0
+  } else {
     bot.autoLinkTries++
-    if (bot.autoLinkTries>MAX_AUTO_LINK) {
-      bot.status='idle'; bot.lastQr=null; bot.pairCode=null
-      bot.lastError=`Linking paused after ${MAX_AUTO_LINK} tries. Press "New Pairing Code" in Admin.`
+    if (bot.autoLinkTries > 15) {
+      bot.status = 'idle'
+      bot.lastError = 'Linking paused. Open Admin > Bots and press "New Pairing Code".'
       warn(`Bot ${botId}: ${bot.lastError}`)
       return
     }
-    // Clear broken half-finished session
-    if (!isLinked()) { try { fs.rmSync(botAuth,{recursive:true,force:true}); fs.mkdirSync(botAuth,{recursive:true}) } catch {} }
   }
 
   let version
   try { ({ version } = await fetchLatestBaileysVersion()) } catch {}
   const { state, saveCreds } = await useMultiFileAuthState(botAuth)
 
+  // Use macOS Desktop identity which is widely trusted by WhatsApp Personal & Business
   const s = makeWASocket({
-    auth: state, version,
+    auth: {
+      creds: state.creds,
+      keys: baileys.makeCacheableSignalKeyStore ? baileys.makeCacheableSignalKeyStore(state.keys, pino({ level:'silent' })) : state.keys
+    },
+    version,
     logger: pino({ level:'silent' }),
-    browser: Browsers.ubuntu('Chrome'),
+    printQRInTerminal: false,
+    browser: Browsers.macOS('Desktop'),
     markOnlineOnConnect: false,
     syncFullHistory: false,
     generateHighQualityLinkPreview: false,
-    keepAliveIntervalMs: 30_000,
+    keepAliveIntervalMs: 25_000,
     connectTimeoutMs: 60_000,
+    defaultQueryTimeoutMs: 60_000,
     getMessage: async key => sentCache.get(key?.id)
   })
+
   bot.sock = s
-  bot.pairRequested = false
   bot.status = 'starting'
-  log(`Bot ${botId} (${bot.label}): connecting...`)
+  log(`Bot ${botId} (${bot.label}): starting connection...`)
 
   s.ev.on('creds.update', async () => {
     try {
       await saveCreds()
-      try { JSON.parse(fs.readFileSync(credsFile,'utf8')) } catch {}
-    } catch {}
+    } catch(err) {
+      warn(`Bot ${botId} saveCreds:`, err.message)
+    }
   })
 
   s.ev.on('messages.update', ups => {
@@ -330,60 +340,89 @@ async function startBot(botId) {
     if (s!==bot.sock) return
 
     if (qr) {
-      bot.status='qr'; bot.ready=false
+      bot.status='qr'
+      bot.ready=false
       if (!state.creds.registered) bot.freshLink=true
-      bot.lastQr = await qrcode.toDataURL(qr)
+      try { bot.lastQr = await qrcode.toDataURL(qr) } catch {}
       if (bot.linkMode==='qr') qrcodeTerminal.generate(qr,{small:true})
+
+      // Generate pairing code once if pairing mode and botNumber provided
       if (bot.linkMode==='pair' && bot.botNumber && !state.creds.registered && !bot.pairRequested) {
-        bot.pairRequested=true
-        try {
-          bot.pairCode = await s.requestPairingCode(normalize(bot.botNumber))
-          log(`Bot ${botId} PAIRING CODE: ${bot.pairCode}`)
-          writeCodeFile(`PAIRING-${botId}.txt`,`PAIRING CODE: ${bot.pairCode}\nWhatsApp > Linked devices > Link with phone number instead`)
-        } catch(e) { bot.pairRequested=false; recordError('pairing-'+botId,e) }
+        bot.pairRequested = true
+        // Give 2 seconds for WebSocket handshake to stabilize before requesting pairing code
+        setTimeout(async () => {
+          if (bot.sock !== s || state.creds.registered) return
+          try {
+            const cleanNum = normalize(bot.botNumber)
+            log(`Bot ${botId}: requesting pairing code for +${cleanNum}...`)
+            bot.pairCode = await s.requestPairingCode(cleanNum)
+            log(`Bot ${botId} PAIRING CODE: ${bot.pairCode}`)
+            banner(`PAIRING CODE (${bot.label})`, bot.pairCode, 'WhatsApp > Linked devices > Link with phone number')
+            writeCodeFile(`PAIRING-${botId}.txt`, `PAIRING CODE: ${bot.pairCode}\nWhatsApp > Linked devices > Link with phone number instead`)
+          } catch(e) {
+            bot.pairRequested = false
+            bot.lastError = 'Pairing code error: ' + (e.message || e)
+            recordError('pairing-'+botId, e)
+          }
+        }, 2000)
       }
     }
 
     if (connection==='open') {
-      bot.status='open'; bot.lastQr=null; bot.pairCode=null; bot.lastError=null
+      bot.status='open'
+      bot.lastQr=null
+      bot.pairCode=null
+      bot.pairRequested=false
+      bot.lastError=null
+      bot.autoLinkTries=0
       bot.openedAt=Date.now()
-      // Connection history
       bot.history.push({ connectedAt:bot.openedAt, disconnectedAt:null, durationSec:0, reason:null })
       if (bot.history.length>20) bot.history.shift()
       removeCodeFile(`PAIRING-${botId}.txt`)
       const wait = bot.freshLink ? CFG.warmupSec : 2
-      log(`Bot ${botId}: connected as ${s.user?.id||'?'} - ready in ${wait}s`)
-      setTimeout(()=>{ if(s===bot.sock&&bot.status==='open') { bot.ready=true; bot.freshLink=false; log(`Bot ${botId}: Ready`) } }, wait*1000)
+      log(`Bot ${botId} (${bot.label}): Connected as ${s.user?.id||'?'} - ready in ${wait}s`)
+      setTimeout(()=>{
+        if (s===bot.sock && bot.status==='open') {
+          bot.ready=true
+          bot.freshLink=false
+          log(`Bot ${botId} (${bot.label}): Ready for messages! 🟢`)
+        }
+      }, wait*1000)
     }
 
     if (connection==='close') {
       bot.ready=false
       const code = lastDisconnect?.error?.output?.statusCode
       const up = bot.openedAt ? Math.round((Date.now()-bot.openedAt)/1000) : 0
-      // Update history
       const hist = bot.history[bot.history.length-1]
       if (hist && !hist.disconnectedAt) {
-        hist.disconnectedAt=Date.now(); hist.durationSec=up
+        hist.disconnectedAt=Date.now()
+        hist.durationSec=up
         hist.reason = reasonName(code)||String(code||'unknown')
       }
       bot.openedAt=0
       const emsg = `${reasonName(code)} (${code}) ${lastDisconnect?.error?.message||''}`
-      warn(`Bot ${botId}: disconnected: ${emsg} | was up ${up}s`)
+      warn(`Bot ${botId}: connection closed: ${emsg} | session was up ${up}s`)
 
       if (code===DisconnectReason.loggedOut) {
-        bot.lastQr=null; bot.pairCode=null
-        if (linkedAtStart) { bot.status='loggedout'; bot.lastError=`Logged out (${code}). Generate new pairing code.` }
-        else { bot.status='closed'; bot.lastError='Connection dropped during linking. Keep Termux in split-screen.' }
-        bot.reconnectTimer=setTimeout(()=>startBot(botId),3000)
+        bot.lastQr=null
+        bot.pairCode=null
+        bot.pairRequested=false
+        try { fs.rmSync(botAuth,{recursive:true,force:true}) } catch {}
+        bot.status='loggedout'
+        bot.lastError=`WhatsApp ended the session (code ${code}). Link again from Admin.`
+        bot.reconnectTimer=setTimeout(()=>startBot(botId), 4000)
       } else if (code===DisconnectReason.connectionReplaced) {
-        bot.status='closed'; bot.lastError='Session replaced (running elsewhere).'
-        bot.reconnectTimer=setTimeout(()=>startBot(botId),15000)
+        bot.status='closed'
+        bot.lastError='Session active on another client (connectionReplaced).'
+        bot.reconnectTimer=setTimeout(()=>startBot(botId), 15000)
       } else {
         bot.status='closed'
         bot.flaps = (Date.now()-bot.lastCloseAt<30000) ? bot.flaps+1 : 0
         bot.lastCloseAt=Date.now()
-        if (bot.flaps>=4) recordError('whatsapp-'+botId,new Error(`Keeps dropping (${bot.flaps}x). ${emsg}`),'WhatsApp')
-        bot.reconnectTimer=setTimeout(()=>startBot(botId), code===DisconnectReason.restartRequired ? 500 : Math.min(1000*2**bot.flaps,30000))
+        if (bot.flaps>=4) recordError('whatsapp-'+botId, new Error(`Connection drops repeatedly (${bot.flaps}x). ${emsg}`),'WhatsApp')
+        const delay = code===DisconnectReason.restartRequired ? 1000 : Math.min(2000 * (bot.flaps + 1), 25000)
+        bot.reconnectTimer=setTimeout(()=>startBot(botId), delay)
       }
     }
   })
@@ -581,12 +620,20 @@ const trustProxy=(() => { const v=process.env.TRUST_PROXY; if(!v)return 'loopbac
 app.set('trust proxy',trustProxy)
 app.use(express.json({limit:'10kb'}))
 app.use((req,res,next) => {
-  res.set({'X-Content-Type-Options':'nosniff','Referrer-Policy':'no-referrer'})
+  res.set({
+    'Access-Control-Allow-Origin': '*',
+    'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
+    'Access-Control-Allow-Headers': 'Content-Type, Authorization, x-api-key',
+    'X-Content-Type-Options': 'nosniff',
+    'Referrer-Policy': 'no-referrer'
+  })
+  if (req.method === 'OPTIONS') return res.sendStatus(204)
   if (req.path.startsWith('/api/')) res.set('Cache-Control','no-store')
   next()
 })
 app.use(express.static(path.join(__dirname,'public')))
 app.get('/admin', (req,res) => res.redirect('/admin.html'))
+app.get('/app', (req,res) => res.redirect('/app.html'))
 
 const anyReady = () => [...bots.values()].some(b=>b.ready)
 
@@ -836,6 +883,45 @@ app.post('/api/admin/bots/:id/restart',adminAuth,(req,res)=>{
   if (bot.sock) { try { bot.sock.end(new Error('manual restart')) } catch {} }
   else startBot(bot.id).catch(e=>recordError('startBot',e))
   res.json({ok:true})
+})
+
+// Direct Chat / Send custom message from specific bot
+app.post('/api/admin/bots/:id/send', adminAuth, async (req, res) => {
+  const bot = bots.get(req.params.id)
+  if (!bot) return res.status(404).json({ ok: false, error: 'Bot not found' })
+  if (!bot.ready || !bot.sock) {
+    return res.status(503).json({ ok: false, error: `Bot "${bot.label}" is not connected or ready yet. Status: ${bot.status}` })
+  }
+
+  const rawNumber = req.body?.number
+  const message = String(req.body?.message || '').trim()
+
+  if (!rawNumber) return res.status(400).json({ ok: false, error: 'Recipient phone number is required.' })
+  const number = normalize(rawNumber)
+  if (number.length < 11 || number.length > 15) return res.status(400).json({ ok: false, error: 'Invalid phone number format (e.g. 03XXXXXXXXX or 923XXXXXXXXX).' })
+  if (!message) return res.status(400).json({ ok: false, error: 'Message text cannot be empty.' })
+
+  try {
+    let jid = number + '@s.whatsapp.net'
+    try {
+      const c = await bot.sock.onWhatsApp(jid)
+      if (Array.isArray(c)) {
+        const hit = c.find(x => x.exists)
+        if (!hit) return res.status(404).json({ ok: false, error: 'No WhatsApp account found for this recipient number.' })
+        jid = hit.jid
+      }
+    } catch(e) {
+      warn(`Bot ${bot.id} onWhatsApp check warning:`, e.message)
+    }
+
+    const { id: msgId } = await sendText(jid, message, bot.id)
+    trackDelivery(msgId, bot.id)
+    log(`Direct message sent via Bot ${bot.id} -> ${mask(number)} | msg: ${msgId.slice(0,6)}`)
+    res.json({ ok: true, msgId, number, state: 'sent', botId: bot.id, botLabel: bot.label })
+  } catch(e) {
+    recordError('direct-send-'+bot.id, e)
+    res.status(500).json({ ok: false, error: 'Failed to send message: ' + (e.message || e) })
+  }
 })
 
 app.get('/api/admin/bots/:id/state',adminAuth,(req,res)=>{

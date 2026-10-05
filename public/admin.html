@@ -149,6 +149,7 @@ input:checked+.slider:before{transform:translateX(18px)}
     <button class="tab-btn" onclick="switchTab('logs')">📋 Logs</button>
   </div>
   <div class="nav-right">
+    <a href="/app.html" target="_blank" style="text-decoration:none;padding:6px 12px;border:1px solid rgba(37,211,102,.4);background:rgba(37,211,102,.1);color:var(--ac);border-radius:8px;font-size:12px;font-weight:600">📱 Open Demo App</a>
     <span id="ovPill" class="pill">...</span>
     <button id="logoutBtn">Logout</button>
   </div>
@@ -726,6 +727,7 @@ function renderBots(bots) {
       <div class="bot-actions">
         <button class="sm p" onclick="botNewCode('${b.id}','pair')">New Pairing Code</button>
         <button class="sm" onclick="botNewCode('${b.id}','qr')">QR Only</button>
+        <button class="sm" style="background:rgba(37,211,102,.15);color:var(--ac);border-color:rgba(37,211,102,.4);font-weight:600" onclick="openDirectChat('${b.id}','${b.label}',${b.ready})">💬 Direct Chat / Send Message</button>
         <button class="sm" onclick="botRestart('${b.id}')">Reconnect</button>
         <button class="sm d" onclick="botUnlink('${b.id}')">Unlink</button>
         <button class="sm d" onclick="botRemove('${b.id}','${b.label}')">Remove</button>
@@ -753,10 +755,64 @@ function renderBots(bots) {
   `).join('')
 }
 
+// Direct Chat Modal
+function openDirectChat(id, label, isReady) {
+  if (!isReady) {
+    toast(`Bot "${label}" is not connected or ready yet. Link WhatsApp first!`, 'err')
+    return
+  }
+  showModal(
+    `💬 Direct Chat via ${label}`,
+    `<p class="mut" style="margin-bottom:12px">Send any custom WhatsApp message to any phone number from this bot.</p>
+     <label class="lbl">Recipient WhatsApp Number (e.g. 03001234567 or 923001234567)</label>
+     <input id="dmNumber" type="tel" placeholder="03XXXXXXXXX" style="margin-top:4px">
+     <label class="lbl" style="margin-top:12px">Custom Message</label>
+     <textarea id="dmMessage" placeholder="Type your WhatsApp message here..." style="min-height:90px;margin-top:4px"></textarea>
+     <div style="display:flex;gap:6px;margin-top:8px;flex-wrap:wrap">
+       <button class="sm" onclick="document.getElementById('dmMessage').value='Hello! This is a test message from WhatsApp OTP Bot Pro.'">Test Greeting</button>
+       <button class="sm" onclick="document.getElementById('dmMessage').value='Dear User, your order has been confirmed successfully.'">Order Notice</button>
+       <button class="sm" onclick="document.getElementById('dmMessage').value='Your secret verification code is *847291*. Valid for 5 minutes.'">Sample OTP</button>
+     </div>
+     <div id="dmStatus" style="margin-top:10px"></div>`,
+    [
+      { text: 'Cancel', cls: '', fn: 'hideModal()' },
+      { text: 'Send Message 🚀', cls: 'p', fn: `sendDirectMessage('${id}')` }
+    ]
+  )
+  setTimeout(() => document.getElementById('dmNumber')?.focus(), 150)
+}
+
+async function sendDirectMessage(id) {
+  const num = document.getElementById('dmNumber')?.value?.trim()
+  const msg = document.getElementById('dmMessage')?.value?.trim()
+  const st = document.getElementById('dmStatus')
+  if (!num) { toast('Please enter phone number', 'err'); return }
+  if (!msg) { toast('Please enter message text', 'err'); return }
+
+  st.innerHTML = '<span class="pill warn">Sending WhatsApp message...</span>'
+  const r = await api(`/api/admin/bots/${id}/send`, 'POST', { number: num, message: msg }).catch(err => ({ ok: false, error: err.message }))
+  if (r?.ok) {
+    st.innerHTML = `<span class="pill ok">✓ Message delivered! ID: ${r.msgId?.slice(0,8)}</span>`
+    toast('Message sent successfully! 🚀', 'ok')
+    setTimeout(() => { hideModal(); refresh() }, 1800)
+  } else {
+    st.innerHTML = `<span class="pill bad">❌ Failed: ${r?.error || 'Could not send'}</span>`
+    toast('Error: ' + (r?.error || 'failed'), 'err')
+  }
+}
+
 // Bot actions
 async function botNewCode(id, mode) {
-  const r = await api(`/api/admin/bots/${id}/new-code`,'POST',{mode}).catch(()=>null)
-  toast(r?.ok ? 'Generating new code...' : 'Error: '+(r?.error||'failed'), r?.ok?'ok':'err')
+  let botNumber = ''
+  if (mode === 'pair') {
+    const curBot = lastState?.bots?.find(x => x.id === id)
+    const promptVal = prompt('Enter WhatsApp Phone Number to link (e.g. 03001234567 or 923001234567):', curBot?.botNumber || '')
+    if (promptVal === null) return // User cancelled
+    botNumber = promptVal.trim()
+  }
+  toast('Requesting new code...', 'info')
+  const r = await api(`/api/admin/bots/${id}/new-code`, 'POST', { mode, botNumber }).catch(() => null)
+  toast(r?.ok ? 'New code requested! Check card or console.' : 'Error: ' + (r?.error || 'failed'), r?.ok ? 'ok' : 'err')
   setTimeout(refresh, 1000)
 }
 async function botRestart(id) {

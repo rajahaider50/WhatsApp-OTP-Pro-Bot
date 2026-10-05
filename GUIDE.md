@@ -29,6 +29,7 @@
 |-----|----------------|
 | `/` | آپ کے users (OTP ڈالیں) |
 | `/admin.html` | آپ (admin panel) |
+| `/app.html` | Demo/test app |
 | `/health` | monitoring |
 
 ---
@@ -44,6 +45,7 @@ package.json
 .gitignore
 public/index.html
 public/admin.html
+public/app.html
 manage.sh
 ```
 
@@ -112,6 +114,7 @@ ADMIN-CODE.txt, PAIRING-CODE.txt
 - ہر bot کی status، uptime، آج کی sends
 - Connection history (کتنے وقت سے connected ہے)
 - **New Pairing Code** → WhatsApp link
+- **Direct Chat / Send Message** → connected bot سے test/custom message
 - **Reconnect** → manual restart
 - **Unlink** → session ختم کریں
 - **Remove** → bot مکمل delete
