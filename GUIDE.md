@@ -246,7 +246,7 @@ async function verifyOTP(phoneNumber, otp) {
 try {
   await sendOTP('03001234567');
   console.log('OTP sent!');
-
+  
   // After user enters OTP:
   const result = await verifyOTP('03001234567', userEnteredOtp);
   console.log('Verified!');

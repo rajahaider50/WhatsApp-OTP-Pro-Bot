@@ -1,96 +1,116 @@
+/**
+ * WhatsApp OTP Pro Gateway v2.0
+ * Multi-Bot WhatsApp Architecture with Pairing Code & QR Support
+ * Direct Messenger, API Key Auth, Express REST APIs, Dynamic Settings
+ */
+
 import express from 'express'
+import fs from 'node:fs'
+import path from 'node:path'
+import crypto from 'node:crypto'
+import http from 'node:http'
+import { fileURLToPath } from 'node:url'
 import pino from 'pino'
+import * as baileys from '@whiskeysockets/baileys'
 import qrcode from 'qrcode'
 import qrcodeTerminal from 'qrcode-terminal'
-import crypto from 'crypto'
-import fs from 'fs'
-import path from 'path'
-import { execFile } from 'child_process'
-import { fileURLToPath } from 'url'
-import * as baileys from '@whiskeysockets/baileys'
 
-// ======================= Constants =======================
+const __filename = fileURLToPath(import.meta.url)
+const __dirname  = path.dirname(__filename)
+
 const APP_NAME = 'OTP Bot Pro'
 const VERSION  = '2.0.0'
-const __dirname = path.dirname(fileURLToPath(import.meta.url))
-const DATA_DIR  = process.env.DATA_DIR ? path.resolve(process.env.DATA_DIR) : __dirname
-try { fs.mkdirSync(DATA_DIR, { recursive: true }) } catch {}
 
-const AUTH_DIR    = path.join(DATA_DIR, 'auth')
-const DATA_FILE   = path.join(DATA_DIR, 'otps.json')
-const LOCK_FILE   = path.join(DATA_DIR, '.lock')
-const CONFIG_FILE = path.join(DATA_DIR, 'config.json')
-const BOTS_FILE   = path.join(DATA_DIR, 'bots.json')
-const KEYS_FILE   = path.join(DATA_DIR, 'apikeys.json')
-const DAILY_FILE  = path.join(DATA_DIR, 'daily.json')
-const URL_FILE    = path.join(__dirname, '.public-url')
-const FIXED_URL   = path.join(__dirname, '.public-url-fixed')
-const TUNNEL_APP  = 'otp-bot-tunnel'
-const UNDER_PM2   = process.env.pm_id !== undefined
-const CODE_FILES  = process.env.CODE_FILES !== '0'
-
-// Colors
-const useColor = (process.stdout.isTTY || process.env.FORCE_COLOR === '1') && !process.env.NO_COLOR
-const paint = c => s => useColor ? `\x1b[${c}m${s}\x1b[0m` : String(s)
-const col = { g: paint(32), r: paint(31), y: paint(33), c: paint(36), b: paint(1) }
-
-// Suppress Baileys noise
-const NOISE = ['Closing session','Opening session','Removing old closed session','Migrating session','Session already closed','Session already open']
-for (const m of ['log','info','warn']) {
-  const orig = console[m].bind(console)
-  console[m] = (...a) => { if (typeof a[0]==='string' && NOISE.some(n=>a[0].startsWith(n))) return; orig(...a) }
+// ======================= ANSI Colors =======================
+const col = {
+  g: s => `\x1b[32m${s}\x1b[0m`,
+  r: s => `\x1b[31m${s}\x1b[0m`,
+  y: s => `\x1b[33m${s}\x1b[0m`,
+  c: s => `\x1b[36m${s}\x1b[0m`,
+  b: s => `\x1b[1m${s}\x1b[0m`,
+  dim: s => `\x1b[2m${s}\x1b[0m`
 }
 
-// ======================= Logging =======================
+const clock = () => new Date().toTimeString().slice(0,8)
+const log   = (...a) => { const s=`${clock()} ${a.join(' ')}`; push('info',s); console.log(col.g(s)) }
+const warn  = (...a) => { const s=`${clock()} WARN ${a.join(' ')}`; push('warn',s); console.log(col.y(s)) }
+
+function banner(title, code, hint='') {
+  const pad = 44
+  const line = '═'.repeat(pad)
+  console.log(col.y(`\n╔${line}╗`))
+  console.log(col.y(`║  ${title.padEnd(pad-2)}║`))
+  console.log(col.y(`╠${line}╣`))
+  console.log(col.y(`║  ${col.b(code).padEnd(pad+7)}║`))
+  if (hint) console.log(col.y(`║  ${col.dim(hint).padEnd(pad+7)}║`))
+  console.log(col.y(`╚${line}╝\n`))
+}
+
+// ======================= Paths & Directories =======================
+const DATA_DIR     = process.env.DATA_DIR || __dirname
+const AUTH_DIR     = path.join(DATA_DIR, 'auth')
+const CONFIG_FILE  = path.join(DATA_DIR, 'config.json')
+const BOTS_FILE    = path.join(DATA_DIR, 'bots.json')
+const APIKEYS_FILE = path.join(DATA_DIR, 'apikeys.json')
+const DAILY_FILE   = path.join(DATA_DIR, 'daily.json')
+const OTPS_FILE    = path.join(DATA_DIR, 'otps.json')
+const LOCK_FILE    = path.join(DATA_DIR, '.lock')
+const FIXED_URL    = path.join(DATA_DIR, 'public_url.txt')
+const TUNNEL_URL   = path.join(__dirname, '.tunnel_url')
+
+try { fs.mkdirSync(DATA_DIR, { recursive: true }) } catch {}
+try { fs.mkdirSync(AUTH_DIR, { recursive: true }) } catch {}
+
+function writeCodeFile(name, text) {
+  try { fs.writeFileSync(path.join(DATA_DIR, name), text, { mode: 0o600 }) } catch {}
+}
+function removeCodeFile(name) {
+  try { fs.unlinkSync(path.join(DATA_DIR, name)) } catch {}
+}
+
+// ======================= In-Memory Logs & Errors =======================
 const ring   = []
 const errors = []
-const clock  = () => new Date().toLocaleTimeString('en-GB')
-const push   = (lvl, msg) => { ring.push({ t: clock(), lvl, msg }); if (ring.length > 200) ring.shift() }
-const fmt    = a => a.map(x => typeof x==='string' ? x : JSON.stringify(x)).join(' ')
-const log    = (...a) => { const m=fmt(a); push('info',m); console.log(col.c(clock()), m) }
-const warn   = (...a) => { const m=fmt(a); push('warn',m); console.log(col.y(clock()+' '+m)) }
+function push(level, text) {
+  ring.push({ t: Date.now(), l: level, m: text })
+  if (ring.length > 300) ring.shift()
+}
 
 const HINTS = [
-  [/ECONNABORTED|ECONNRESET|EPIPE/, 'Network dropped. Keep Termux visible (split-screen), turn VPN off.'],
-  [/ENOTFOUND|EAI_AGAIN/, 'DNS/internet problem. Check network.'],
-  [/ETIMEDOUT|timed.?out/i, 'Connection timed out. Network is weak.'],
-  [/EADDRINUSE/, 'Port already in use. Run: pm2 stop all'],
-  [/Connection Closed|connectionClosed|Connection Terminated/, 'WhatsApp closed. Reconnecting automatically.'],
-  [/rate-overlimit/, 'WhatsApp rate-limited the account. Wait before sending more.'],
-  [/401|loggedOut|not-authorized/, 'Session ended. Generate a new pairing code from Admin.'],
-  [/bot not ready/, 'No bot is linked or ready. Link from Admin > Bots.'],
-  [/Cannot find module|ERR_MODULE_NOT_FOUND/, 'Package missing. Run: npm install'],
+  [/rate-overlimit|429/, 'WhatsApp rate limit hit. Wait 10-15 minutes or add another bot.'],
+  [/Connection Failure|timed out|ENOTFOUND|EAI_AGAIN/, 'Network / DNS issue. Check your internet or server connection.'],
+  [/401|loggedOut|not-authorized/, 'Session logged out from phone. Click "New Pairing Code" from Admin.'],
+  [/bot not ready/, 'No linked WhatsApp account is ready. Link a bot from Admin > WhatsApp Bots.'],
+  [/restartRequired|515/, 'Normal WhatsApp companion registration handshake. Reconnecting automatically.'],
 ]
-const hintFor = m => (HINTS.find(([re])=>re.test(m))||[])[1]||''
+const hintFor = m => (HINTS.find(([re]) => re.test(m)) || [])[1] || ''
 
-function srcOf(e) {
-  const lines = String(e?.stack||'').split('\n').slice(1)
-  const own   = lines.find(l=>l.includes(__dirname)&&!l.includes('node_modules'))||lines[0]||''
-  const m     = own.match(/\(?([^()\s]+:\d+:\d+)\)?\s*$/)
-  return m ? m[1].replace('file://','').replace(__dirname+'/','') : '(no stack)'
-}
 function recordError(where, e, src) {
-  const msg    = String(e?.message||e).slice(0,300)
-  const source = src||srcOf(e)
-  const last   = errors[errors.length-1]
-  if (last && last.msg===msg && last.where===where) { last.count++; last.t=clock(); return }
-  errors.push({ t:clock(), where, src:source, msg, hint:hintFor(msg), count:1 })
-  if (errors.length>100) errors.shift()
-  push('error',`[${where}] ${source} - ${msg}`)
-  console.log(col.r(`${clock()} ERROR [${where}] ${source} - ${msg}`))
+  const msg    = String(e?.message || e).slice(0, 300)
+  const source = src || (e?.stack ? e.stack.split('\n')[1]?.trim() : '(runtime)')
+  const last   = errors[errors.length - 1]
+  if (last && last.msg === msg && last.where === where) {
+    last.count++
+    last.t = clock()
+    return
+  }
+  errors.push({ t: clock(), where, src: source, msg, hint: hintFor(msg), count: 1 })
+  if (errors.length > 100) errors.shift()
+  push('error', `[${where}] ${msg}`)
+  console.log(col.r(`${clock()} ERROR [${where}] ${msg}`))
 }
 process.on('unhandledRejection', e => recordError('unhandledRejection', e))
 process.on('uncaughtException',  e => recordError('uncaughtException', e))
 
-// ======================= Config =======================
-const DEFAULT_MSG = `\uD83D\uDD10 *Your Verification Code*
+// ======================= Configuration =======================
+const DEFAULT_MSG = `🔐 *Your Verification Code*
 
-\u250C\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2510
-\u2502      *{OTP}*        \u2502
-\u2514\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2518
+┌─────────────────────┐
+│      *{OTP}*        │
+└─────────────────────┘
 
-\u23F1 Valid for *{MINUTES} minutes*
-\uD83D\uDD12 Keep this code private
+⏱ Valid for *{MINUTES} minutes*
+🔒 Keep this code private
 
 _Tap code to copy_`
 
@@ -99,161 +119,244 @@ const DEFAULTS = {
   signupEnabled: true,
   restrictToAllowed: false,
   allowedNumbers: [],
-  warmupSec: 20,
+  warmupSec: 10,
   otpTtlSec: 300,
   cooldownSec: 60,
-  maxPerHour: 30,
-  ipLimitPerHour: 10,
-  dailyLimit: 500,
+  maxPerHour: 40,
+  ipLimitPerHour: 15,
+  dailyLimit: 1000,
   tunnelWatchdog: true,
   message: DEFAULT_MSG
 }
+
 let CFG = { ...DEFAULTS }
-try { CFG = { ...DEFAULTS, ...JSON.parse(fs.readFileSync(CONFIG_FILE,'utf8')) } } catch {}
-const saveConfig = () => { try { fs.writeFileSync(CONFIG_FILE, JSON.stringify(CFG,null,2)) } catch(e) { recordError('config',e) } }
+try { CFG = { ...DEFAULTS, ...JSON.parse(fs.readFileSync(CONFIG_FILE, 'utf8')) } } catch {}
+const saveConfig = () => {
+  try { fs.writeFileSync(CONFIG_FILE, JSON.stringify(CFG, null, 2)) } catch(e) { recordError('config', e) }
+}
 saveConfig()
 
-const PORT           = Number(process.env.SERVER_PORT||process.env.PORT||CFG.port)||3000
-const HOST           = process.env.HOST||'0.0.0.0'
-const ADMIN_PASSWORD = String(process.env.ADMIN_PASSWORD||'')
-const passwordEnabled= ADMIN_PASSWORD.length>=8
-const MAX_AUTO_LINK  = Number(process.env.MAX_AUTO_LINK_TRIES)||5
+const PORT           = Number(process.env.SERVER_PORT || process.env.PORT || CFG.port) || 3000
+const HOST           = process.env.HOST || '0.0.0.0'
+const ADMIN_PASSWORD = String(process.env.ADMIN_PASSWORD || '')
+const passwordEnabled= ADMIN_PASSWORD.length >= 8
 const MAX_ATTEMPTS   = 5
 
-// ======================= Helpers =======================
+// ======================= Number Normalization =======================
+/**
+ * Normalizes phone numbers strictly.
+ * Pakistani numbers starting with 3 (10 digits) or 03 (11 digits) or 9203 (13 digits)
+ * are cleanly mapped to '923XXXXXXXXX' (12 digits, E.164 without leading +).
+ */
 function normalize(input) {
-  let n = String(input||'').replace(/\D/g,'')
+  let n = String(input || '').replace(/\D/g, '')
   if (n.startsWith('00')) n = n.slice(2)
-  if (n.startsWith('0') && n.length===11) n = '92'+n.slice(1)
-  if (n.startsWith('920')) n = '92'+n.slice(3)
+  if (n.startsWith('920')) n = '92' + n.slice(3)
+  else if (n.startsWith('0') && n.length === 11) n = '92' + n.slice(1)
+  else if (n.startsWith('3') && n.length === 10) n = '92' + n
+  else if (n.length === 10 && !n.startsWith('92')) n = '92' + n
   return n
 }
-const allowedSet = () => new Set((CFG.allowedNumbers||[]).map(normalize))
-const mask = n => n.slice(0,5)+'*****'+n.slice(-2)
-const sleep = ms => new Promise(r=>setTimeout(r,ms))
-const rand  = (a,b) => a+Math.random()*(b-a)
 
-// ======================= Lock file =======================
-function looksLikeOurServer(pid) {
-  try { return /server\.js|ProcessContainerFork/.test(fs.readFileSync(`/proc/${pid}/cmdline`,'utf8')) }
-  catch { return false }
-}
+const allowedSet = () => new Set((CFG.allowedNumbers || []).map(normalize))
+const mask       = n => n.slice(0, 5) + '*****' + n.slice(-2)
+const sleep      = ms => new Promise(r => setTimeout(r, ms))
+const rand       = (a, b) => a + Math.random() * (b - a)
+
+// ======================= Process Lock =======================
 try {
   if (fs.existsSync(LOCK_FILE)) {
-    const pid = Number(fs.readFileSync(LOCK_FILE,'utf8'))
-    if (pid && pid!==process.pid) {
-      let alive=true; try { process.kill(pid,0) } catch { alive=false }
-      if (alive && looksLikeOurServer(pid)) {
-        console.error(col.r(`ERROR: another instance (PID ${pid}) is running. Stop it: pm2 stop all ; pkill -f server.js`))
-        process.exit(1)
-      }
+    const oldPid = Number(fs.readFileSync(LOCK_FILE, 'utf8'))
+    if (oldPid && oldPid !== process.pid) {
+      let isAlive = true
+      try { process.kill(oldPid, 0) } catch { isAlive = false }
+      if (!isAlive) fs.unlinkSync(LOCK_FILE)
     }
   }
   fs.writeFileSync(LOCK_FILE, String(process.pid))
 } catch {}
-process.on('exit', () => { try { fs.unlinkSync(LOCK_FILE) } catch {} })
-for (const s of ['SIGINT','SIGTERM']) process.on(s,()=>process.exit(0))
+const cleanLock = () => { try { if (Number(fs.readFileSync(LOCK_FILE, 'utf8')) === process.pid) fs.unlinkSync(LOCK_FILE) } catch {} }
+process.on('exit', cleanLock)
+process.on('SIGINT',  () => { cleanLock(); process.exit(0) })
+process.on('SIGTERM', () => { cleanLock(); process.exit(0) })
 
-// ======================= Code files =======================
-const writeCodeFile  = (name,text) => { if(CODE_FILES) { try { fs.writeFileSync(path.join(DATA_DIR,name),text+'\n') } catch {} } }
-const removeCodeFile = name => { try { fs.unlinkSync(path.join(DATA_DIR,name)) } catch {} }
-removeCodeFile('ADMIN-CODE.txt'); removeCodeFile('PAIRING-CODE.txt')
-
-// ======================= Daily limit =======================
-let dailyGlobal = { date:'', count:0 }
-try { dailyGlobal = JSON.parse(fs.readFileSync(DAILY_FILE,'utf8')) } catch {}
-function checkDailyReset() {
-  const d = new Date().toISOString().split('T')[0]
-  if (dailyGlobal.date!==d) dailyGlobal = { date:d, count:0 }
+// ======================= Tunnel Detection =======================
+const currentTunnelUrl = () => {
+  for (const f of [FIXED_URL, TUNNEL_URL]) {
+    try { const u = fs.readFileSync(f, 'utf8').trim(); if (u && /^https?:\/\//.test(u)) return u } catch {}
+  }
+  if (process.env.PUBLIC_URL) return process.env.PUBLIC_URL.trim()
+  return ''
 }
-checkDailyReset()
-setInterval(() => { checkDailyReset(); try { fs.writeFileSync(DAILY_FILE,JSON.stringify(dailyGlobal)) } catch {} }, 60_000)
+let publicOk = false, publicCheckedAt = 0
+async function checkPublic() {
+  const u = currentTunnelUrl()
+  if (!u) { publicOk = false; return }
+  try {
+    const res = await fetch(`${u}/health`, { signal: AbortSignal.timeout(5000) })
+    publicOk = res.ok
+  } catch { publicOk = false }
+  publicCheckedAt = Date.now()
+}
+setInterval(checkPublic, 30_000)
+setTimeout(checkPublic, 3_000)
 
-// ======================= API Keys =======================
+// ======================= API Keys Management =======================
 let apiKeys = []
-try { apiKeys = JSON.parse(fs.readFileSync(KEYS_FILE,'utf8')) } catch {}
-const saveApiKeys = () => { try { fs.writeFileSync(KEYS_FILE,JSON.stringify(apiKeys,null,2)) } catch {} }
+function loadApiKeys() {
+  try {
+    apiKeys = JSON.parse(fs.readFileSync(APIKEYS_FILE, 'utf8'))
+  } catch {
+    // Generate default key if none exists
+    const defKey = '3ced2f73b6e9c74f4e17c77018f4bde1ea11947af9d0c61e5d883fa9297091a0'
+    apiKeys = [{
+      id: 'k_primary',
+      key: defKey,
+      label: 'Default App Key',
+      createdAt: Date.now(),
+      enabled: true,
+      dailyLimit: 0, // unlimited
+      usedToday: 0,
+      lastUsedDate: ''
+    }]
+    saveApiKeys()
+  }
+}
+function saveApiKeys() {
+  try { fs.writeFileSync(APIKEYS_FILE, JSON.stringify(apiKeys, null, 2)) } catch(e) { recordError('apikeys', e) }
+}
+loadApiKeys()
 
 function apiKeyAuth(req, res, next) {
-  const k = req.headers['x-api-key']||req.query.api_key
-  if (!k) return res.status(401).json({ ok:false, error:'API key required (x-api-key header)' })
-  const keyObj = apiKeys.find(x=>x.key===k)
-  if (!keyObj||!keyObj.enabled) return res.status(401).json({ ok:false, error:'Invalid or disabled API key' })
-  const d = new Date().toISOString().split('T')[0]
-  if (keyObj.lastUsedDate!==d) { keyObj.usedToday=0; keyObj.lastUsedDate=d }
-  if (keyObj.dailyLimit>0 && keyObj.usedToday>=keyObj.dailyLimit)
-    return res.status(429).json({ ok:false, error:'API key daily limit reached' })
-  req.apiKey = keyObj
+  const headerKey = req.headers['x-api-key'] || req.query.api_key
+  if (!headerKey) return res.status(401).json({ ok: false, error: 'Missing x-api-key header or api_key query param.' })
+  const found = apiKeys.find(k => k.key === headerKey && k.enabled)
+  if (!found) return res.status(403).json({ ok: false, error: 'Invalid or disabled API key.' })
+
+  const today = new Date().toISOString().split('T')[0]
+  if (found.lastUsedDate !== today) {
+    found.usedToday = 0
+    found.lastUsedDate = today
+  }
+  if (found.dailyLimit > 0 && found.usedToday >= found.dailyLimit) {
+    return res.status(429).json({ ok: false, error: `Daily limit of ${found.dailyLimit} reached for this API key.` })
+  }
+  req.apiKey = found
   next()
 }
 
-// ======================= Stats & Delivery =======================
-const globalStats = { requested:0, accepted:0, delivered:0, undelivered:0, failed:0, verified:0 }
-const STATUS       = { 0:'ERROR', 1:'PENDING', 2:'SERVER_ACK', 3:'DELIVERED', 4:'READ', 5:'PLAYED' }
-const sentCache    = new Map()
-const sends        = new Map()
-const waiters      = new Map()
-const lateIds      = new Set()
-const lastMsg      = new Map()
+// ======================= Daily Global Counter =======================
+let dailyGlobal = { date: '', count: 0 }
+try { dailyGlobal = JSON.parse(fs.readFileSync(DAILY_FILE, 'utf8')) } catch {}
+function checkDailyReset() {
+  const today = new Date().toISOString().split('T')[0]
+  if (dailyGlobal.date !== today) {
+    dailyGlobal = { date: today, count: 0 }
+    try { fs.writeFileSync(DAILY_FILE, JSON.stringify(dailyGlobal)) } catch {}
+  }
+}
+checkDailyReset()
+
+// ======================= Global Stats & Tracking =======================
+const globalStats = { requested: 0, accepted: 0, delivered: 0, undelivered: 0, failed: 0, verified: 0 }
+const sends       = new Map() // msgId -> { to, status, at, botId }
+const sentCache   = new Map()
+const lateIds     = new Set()
+const waiters     = new Map()
+const STATUS      = { 1: 'pending', 2: 'server_ack', 3: 'delivered', 4: 'read', 5: 'played' }
 
 function trackMsg(id, st, botId) {
   const r = sends.get(id)
   if (!r) return
-  if (st>r.status) { r.status=st; log(`msg ${id.slice(0,6)} -> ${STATUS[st]||st}`) }
-  if (st>=3 && lateIds.has(id)) {
-    lateIds.delete(id)
-    globalStats.undelivered = Math.max(0,globalStats.undelivered-1)
-    globalStats.delivered++
-    const b = bots.get(botId||r.botId)
-    if (b) { b.stats.undelivered=Math.max(0,b.stats.undelivered-1); b.stats.delivered++ }
+  if (st > r.status) {
+    r.status = st
+    log(`Message ${id.slice(0, 6)} -> ${STATUS[st] || st}`)
   }
-  if (st>=3) { const w=waiters.get(id); if(w){w(true);waiters.delete(id)} }
+  if (st >= 3 && lateIds.has(id)) {
+    lateIds.delete(id)
+    globalStats.undelivered = Math.max(0, globalStats.undelivered - 1)
+    globalStats.delivered++
+    const b = bots.get(botId || r.botId)
+    if (b) { b.stats.undelivered = Math.max(0, b.stats.undelivered - 1); b.stats.delivered++ }
+  }
+  if (st >= 3) {
+    const w = waiters.get(id)
+    if (w) { w(true); waiters.delete(id) }
+  }
 }
+
 function waitDelivered(id, ms) {
   return new Promise(res => {
-    if ((sends.get(id)?.status||0)>=3) return res(true)
-    waiters.set(id,res)
-    setTimeout(()=>{waiters.delete(id);res(false)},ms)
+    if ((sends.get(id)?.status || 0) >= 3) return res(true)
+    waiters.set(id, res)
+    setTimeout(() => { waiters.delete(id); res(false) }, ms)
   })
 }
+
 function trackDelivery(id, botId) {
-  waitDelivered(id,90_000).then(ok=>{
-    if (ok) { globalStats.delivered++; const b=bots.get(botId); if(b) b.stats.delivered++; return }
-    globalStats.undelivered++; lateIds.add(id)
-    const b=bots.get(botId); if(b) b.stats.undelivered++
-    warn(`No delivery after 90s (msg ${id.slice(0,6)})`)
+  waitDelivered(id, 90_000).then(ok => {
+    if (ok) {
+      globalStats.delivered++
+      const b = bots.get(botId)
+      if (b) b.stats.delivered++
+      return
+    }
+    globalStats.undelivered++
+    lateIds.add(id)
+    const b = bots.get(botId)
+    if (b) b.stats.undelivered++
+    warn(`No delivery receipt after 90s (msg ${id.slice(0, 6)})`)
   })
 }
 
-// ======================= Multi-Bot Architecture =======================
-const bots = new Map()
-let botsConfig = []
-try { botsConfig = JSON.parse(fs.readFileSync(BOTS_FILE,'utf8')) } catch {
-  botsConfig = [{ id:'bot0', label:'Main Bot', enabled:true, botNumber: process.env.BOT_NUMBER||'923495031007' }]
-  try { fs.writeFileSync(BOTS_FILE,JSON.stringify(botsConfig,null,2)) } catch {}
+// ======================= Multi-Bot WhatsApp Architecture =======================
+const bots       = new Map() // botId -> botState
+let botsConfig   = []
+
+try {
+  botsConfig = JSON.parse(fs.readFileSync(BOTS_FILE, 'utf8'))
+} catch {
+  const defNumber = process.env.BOT_NUMBER ? normalize(process.env.BOT_NUMBER) : '923495031007'
+  botsConfig = [{ id: 'bot0', label: 'Main WhatsApp', enabled: true, botNumber: defNumber }]
+  try { fs.writeFileSync(BOTS_FILE, JSON.stringify(botsConfig, null, 2)) } catch {}
 }
 
-const makeWASocket = baileys.default?.default||baileys.default||baileys.makeWASocket
+const makeWASocket = baileys.default?.default || baileys.default || baileys.makeWASocket
 const { useMultiFileAuthState, DisconnectReason, fetchLatestBaileysVersion, Browsers } = baileys
-const ROUTINE = new Set([DisconnectReason.connectionLost, DisconnectReason.connectionClosed, DisconnectReason.timedOut, DisconnectReason.restartRequired].filter(x=>x!==undefined))
-const reasonName = c => Object.entries(DisconnectReason).find(([,v])=>v===c)?.[0]||'unknown'
+const reasonName = c => Object.entries(DisconnectReason).find(([, v]) => v === c)?.[0] || String(c || 'unknown')
 
 function initBotState(cfg) {
   const state = {
-    id: cfg.id, label: cfg.label||cfg.id, enabled: cfg.enabled!==false,
-    botNumber: cfg.botNumber||'',
-    sock: null, status: 'idle', ready: false,
-    lastQr: null, pairCode: null, lastError: null,
-    linkMode: 'pair', pairRequested: false,
-    reconnectTimer: null, freshLink: false,
-    openedAt: 0, flaps: 0, lastCloseAt: 0, autoLinkTries: 0,
+    id: cfg.id,
+    label: cfg.label || cfg.id,
+    enabled: cfg.enabled !== false,
+    botNumber: normalize(cfg.botNumber || ''),
+    sock: null,
+    status: 'idle',
+    ready: false,
+    lastQr: null,
+    pairCode: null,
+    lastError: null,
+    linkMode: 'pair',
+    pairRequested: false,
+    reconnectTimer: null,
+    freshLink: false,
+    openedAt: 0,
     history: [],
-    dailySent: { date:'', count:0 },
-    stats: { requested:0, accepted:0, delivered:0, undelivered:0, failed:0 },
+    dailySent: { date: '', count: 0 },
+    stats: { requested: 0, accepted: 0, delivered: 0, undelivered: 0, failed: 0 },
     chain: Promise.resolve()
   }
   bots.set(cfg.id, state)
   return state
+}
+
+function saveBotsConfig() {
+  const arr = []
+  for (const bot of bots.values()) {
+    arr.push({ id: bot.id, label: bot.label, enabled: bot.enabled, botNumber: normalize(bot.botNumber) })
+  }
+  try { fs.writeFileSync(BOTS_FILE, JSON.stringify(arr, null, 2)) } catch {}
 }
 
 async function startBot(botId) {
@@ -267,42 +370,34 @@ async function startBot(botId) {
     bot.sock = null
   }
 
-  const botAuth = path.join(AUTH_DIR, botId)
-  try { fs.mkdirSync(botAuth,{recursive:true}) } catch {}
+  const botAuthDir = path.join(AUTH_DIR, botId)
+  try { fs.mkdirSync(botAuthDir, { recursive: true }) } catch {}
 
-  const credsFile = path.join(botAuth,'creds.json')
-  const isLinked  = () => {
-    try { const c=JSON.parse(fs.readFileSync(credsFile,'utf8')); return !!(c.registered||c.account) }
-    catch { return false }
+  const credsFile = path.join(botAuthDir, 'creds.json')
+  const isLinked = () => {
+    try {
+      const c = JSON.parse(fs.readFileSync(credsFile, 'utf8'))
+      return !!(c.registered || c.account)
+    } catch { return false }
   }
 
-  const linkedAtStart = isLinked()
-  if (linkedAtStart) {
-    bot.autoLinkTries = 0
-  } else {
-    bot.autoLinkTries++
-    if (bot.autoLinkTries > 15) {
-      bot.status = 'idle'
-      bot.lastError = 'Linking paused. Open Admin > Bots and press "New Pairing Code".'
-      warn(`Bot ${botId}: ${bot.lastError}`)
-      return
-    }
-  }
-
+  // Fetch latest WhatsApp Web version to ensure compatibility
   let version
-  try { ({ version } = await fetchLatestBaileysVersion()) } catch {}
-  const { state, saveCreds } = await useMultiFileAuthState(botAuth)
+  try {
+    const vInfo = await fetchLatestBaileysVersion()
+    version = vInfo.version
+  } catch {}
 
-  // Use macOS Desktop identity which is widely trusted by WhatsApp Personal & Business
+  // Multi-file auth state without wrapping in caching signal stores during registration
+  const { state, saveCreds } = await useMultiFileAuthState(botAuthDir)
+
+  // Use Browsers.ubuntu('Chrome') which is standard for WhatsApp Web companion registration
   const s = makeWASocket({
-    auth: {
-      creds: state.creds,
-      keys: baileys.makeCacheableSignalKeyStore ? baileys.makeCacheableSignalKeyStore(state.keys, pino({ level:'silent' })) : state.keys
-    },
+    auth: state,
     version,
-    logger: pino({ level:'silent' }),
+    logger: pino({ level: 'silent' }),
     printQRInTerminal: false,
-    browser: Browsers.macOS('Desktop'),
+    browser: Browsers.ubuntu('Chrome'),
     markOnlineOnConnect: false,
     syncFullHistory: false,
     generateHighQualityLinkPreview: false,
@@ -312,691 +407,690 @@ async function startBot(botId) {
     getMessage: async key => sentCache.get(key?.id)
   })
 
-  bot.sock = s
+  bot.sock   = s
   bot.status = 'starting'
-  log(`Bot ${botId} (${bot.label}): starting connection...`)
+  log(`Bot ${botId} ("${bot.label}"): initializing connection socket...`)
 
   s.ev.on('creds.update', async () => {
-    try {
-      await saveCreds()
-    } catch(err) {
-      warn(`Bot ${botId} saveCreds:`, err.message)
-    }
+    try { await saveCreds() } catch(err) { warn(`Bot ${botId} saveCreds:`, err.message) }
   })
 
   s.ev.on('messages.update', ups => {
-    for (const { key, update } of ups)
-      if (key?.fromMe && update?.status!=null) trackMsg(key.id, update.status, botId)
+    for (const { key, update } of ups) {
+      if (key?.fromMe && update?.status != null) trackMsg(key.id, update.status, botId)
+    }
   })
+
   s.ev.on('message-receipt.update', ups => {
     for (const { key, receipt } of ups) {
       if (!key?.fromMe) continue
-      if (receipt?.readTimestamp)    trackMsg(key.id,4,botId)
-      else if (receipt?.receiptTimestamp) trackMsg(key.id,3,botId)
+      if (receipt?.readTimestamp) trackMsg(key.id, 4, botId)
+      else if (receipt?.receiptTimestamp) trackMsg(key.id, 3, botId)
     }
   })
 
   s.ev.on('connection.update', async ({ connection, lastDisconnect, qr }) => {
-    if (s!==bot.sock) return
+    if (s !== bot.sock) return
 
     if (qr) {
-      bot.status='qr'
-      bot.ready=false
-      if (!state.creds.registered) bot.freshLink=true
+      bot.status = 'qr'
+      bot.ready  = false
+      if (!state.creds.registered) bot.freshLink = true
       try { bot.lastQr = await qrcode.toDataURL(qr) } catch {}
-      if (bot.linkMode==='qr') qrcodeTerminal.generate(qr,{small:true})
+      if (bot.linkMode === 'qr') qrcodeTerminal.generate(qr, { small: true })
 
-      // Generate pairing code once if pairing mode and botNumber provided
-      if (bot.linkMode==='pair' && bot.botNumber && !state.creds.registered && !bot.pairRequested) {
+      // If in pairing mode and phone number is configured, request pairing code immediately
+      if (bot.linkMode === 'pair' && bot.botNumber && !state.creds.registered && !bot.pairRequested) {
         bot.pairRequested = true
-        // Give 2 seconds for WebSocket handshake to stabilize before requesting pairing code
-        setTimeout(async () => {
-          if (bot.sock !== s || state.creds.registered) return
-          try {
-            const cleanNum = normalize(bot.botNumber)
-            log(`Bot ${botId}: requesting pairing code for +${cleanNum}...`)
-            bot.pairCode = await s.requestPairingCode(cleanNum)
-            log(`Bot ${botId} PAIRING CODE: ${bot.pairCode}`)
-            banner(`PAIRING CODE (${bot.label})`, bot.pairCode, 'WhatsApp > Linked devices > Link with phone number')
-            writeCodeFile(`PAIRING-${botId}.txt`, `PAIRING CODE: ${bot.pairCode}\nWhatsApp > Linked devices > Link with phone number instead`)
-          } catch(e) {
-            bot.pairRequested = false
-            bot.lastError = 'Pairing code error: ' + (e.message || e)
-            recordError('pairing-'+botId, e)
-          }
-        }, 2000)
-      }
-    }
-
-    if (connection==='open') {
-      bot.status='open'
-      bot.lastQr=null
-      bot.pairCode=null
-      bot.pairRequested=false
-      bot.lastError=null
-      bot.autoLinkTries=0
-      bot.openedAt=Date.now()
-      bot.history.push({ connectedAt:bot.openedAt, disconnectedAt:null, durationSec:0, reason:null })
-      if (bot.history.length>20) bot.history.shift()
-      removeCodeFile(`PAIRING-${botId}.txt`)
-      const wait = bot.freshLink ? CFG.warmupSec : 2
-      log(`Bot ${botId} (${bot.label}): Connected as ${s.user?.id||'?'} - ready in ${wait}s`)
-      setTimeout(()=>{
-        if (s===bot.sock && bot.status==='open') {
-          bot.ready=true
-          bot.freshLink=false
-          log(`Bot ${botId} (${bot.label}): Ready for messages! 🟢`)
+        try {
+          const cleanNum = normalize(bot.botNumber)
+          log(`Bot ${botId} ("${bot.label}"): Requesting WhatsApp pairing code for +${cleanNum}...`)
+          const code = await s.requestPairingCode(cleanNum)
+          bot.pairCode = code
+          log(`Bot ${botId} PAIRING CODE: ${code}`)
+          banner(`PAIRING CODE (${bot.label})`, code, 'WhatsApp > Linked devices > Link with phone number')
+          writeCodeFile(`PAIRING-${botId}.txt`, `PAIRING CODE: ${code}\nPhone: +${cleanNum}\nWhatsApp > Linked devices > Link with phone number`)
+        } catch(e) {
+          bot.pairRequested = false
+          bot.lastError = 'Pairing error: ' + (e.message || e)
+          recordError('pairing-' + botId, e)
         }
-      }, wait*1000)
+      }
     }
 
-    if (connection==='close') {
-      bot.ready=false
-      const code = lastDisconnect?.error?.output?.statusCode
-      const up = bot.openedAt ? Math.round((Date.now()-bot.openedAt)/1000) : 0
-      const hist = bot.history[bot.history.length-1]
-      if (hist && !hist.disconnectedAt) {
-        hist.disconnectedAt=Date.now()
-        hist.durationSec=up
-        hist.reason = reasonName(code)||String(code||'unknown')
-      }
-      bot.openedAt=0
-      const emsg = `${reasonName(code)} (${code}) ${lastDisconnect?.error?.message||''}`
-      warn(`Bot ${botId}: connection closed: ${emsg} | session was up ${up}s`)
+    if (connection === 'open') {
+      bot.status = 'open'
+      bot.lastQr = null
+      bot.pairCode = null
+      bot.pairRequested = false
+      bot.lastError = null
+      bot.openedAt = Date.now()
+      bot.history.push({ connectedAt: bot.openedAt, disconnectedAt: null, durationSec: 0, reason: null })
+      if (bot.history.length > 20) bot.history.shift()
+      removeCodeFile(`PAIRING-${botId}.txt`)
 
-      if (code===DisconnectReason.loggedOut) {
-        bot.lastQr=null
-        bot.pairCode=null
-        bot.pairRequested=false
-        try { fs.rmSync(botAuth,{recursive:true,force:true}) } catch {}
-        bot.status='loggedout'
-        bot.lastError=`WhatsApp ended the session (code ${code}). Link again from Admin.`
-        bot.reconnectTimer=setTimeout(()=>startBot(botId), 4000)
-      } else if (code===DisconnectReason.connectionReplaced) {
-        bot.status='closed'
-        bot.lastError='Session active on another client (connectionReplaced).'
-        bot.reconnectTimer=setTimeout(()=>startBot(botId), 15000)
+      const wait = bot.freshLink ? CFG.warmupSec : 2
+      log(`Bot ${botId} ("${bot.label}"): Connected as ${s.user?.id || '?'} - ready in ${wait}s`)
+      setTimeout(() => {
+        if (s === bot.sock && bot.status === 'open') {
+          bot.ready = true
+          bot.freshLink = false
+          log(`Bot ${botId} ("${bot.label}"): Ready for messages! 🟢`)
+        }
+      }, wait * 1000)
+    }
+
+    if (connection === 'close') {
+      bot.ready = false
+      const code = lastDisconnect?.error?.output?.statusCode
+      const up = bot.openedAt ? Math.round((Date.now() - bot.openedAt) / 1000) : 0
+      const hist = bot.history[bot.history.length - 1]
+      if (hist && !hist.disconnectedAt) {
+        hist.disconnectedAt = Date.now()
+        hist.durationSec = up
+        hist.reason = reasonName(code) || String(code || 'unknown')
+      }
+      bot.openedAt = 0
+      const emsg = `${reasonName(code)} (${code}) ${lastDisconnect?.error?.message || ''}`
+      warn(`Bot ${botId} connection closed: ${emsg} | was up ${up}s`)
+
+      if (code === DisconnectReason.loggedOut) {
+        bot.lastQr = null
+        bot.pairCode = null
+        bot.pairRequested = false
+        try { fs.rmSync(botAuthDir, { recursive: true, force: true }) } catch {}
+        bot.status = 'loggedout'
+        bot.lastError = `WhatsApp ended session (code ${code}). Link again from Admin.`
+        bot.reconnectTimer = setTimeout(() => startBot(botId), 4000)
+      } else if (code === DisconnectReason.connectionReplaced) {
+        bot.status = 'closed'
+        bot.lastError = 'Active on another client (connectionReplaced).'
+        bot.reconnectTimer = setTimeout(() => startBot(botId), 15000)
       } else {
-        bot.status='closed'
-        bot.flaps = (Date.now()-bot.lastCloseAt<30000) ? bot.flaps+1 : 0
-        bot.lastCloseAt=Date.now()
-        if (bot.flaps>=4) recordError('whatsapp-'+botId, new Error(`Connection drops repeatedly (${bot.flaps}x). ${emsg}`),'WhatsApp')
-        const delay = code===DisconnectReason.restartRequired ? 1000 : Math.min(2000 * (bot.flaps + 1), 25000)
-        bot.reconnectTimer=setTimeout(()=>startBot(botId), delay)
+        // Normal restart or reconnect required (e.g. 515 restartRequired after pairing)
+        bot.status = 'closed'
+        const delay = code === DisconnectReason.restartRequired ? 1000 : 3000
+        bot.reconnectTimer = setTimeout(() => startBot(botId), delay)
       }
     }
   })
 }
 
 function stopBot(botId) {
-  const bot=bots.get(botId); if(!bot) return
+  const bot = bots.get(botId)
+  if (!bot) return
   clearTimeout(bot.reconnectTimer)
-  bot.enabled=false
-  if (bot.sock) { try { bot.sock.ev.removeAllListeners() } catch {}; try { bot.sock.end?.(undefined) } catch {} }
-  bot.sock=null; bot.status='idle'; bot.ready=false; bot.lastQr=null; bot.pairCode=null
+  bot.enabled = false
+  if (bot.sock) {
+    try { bot.sock.ev.removeAllListeners() } catch {}
+    try { bot.sock.end?.(undefined) } catch {}
+  }
+  bot.sock = null
+  bot.status = 'idle'
+  bot.ready = false
+  bot.lastQr = null
+  bot.pairCode = null
   saveBotsConfig()
 }
 
 function removeBot(botId) {
   stopBot(botId)
   bots.delete(botId)
-  botsConfig=botsConfig.filter(b=>b.id!==botId)
+  botsConfig = botsConfig.filter(b => b.id !== botId)
   saveBotsConfig()
-  try { fs.rmSync(path.join(AUTH_DIR,botId),{recursive:true,force:true}) } catch {}
+  try { fs.rmSync(path.join(AUTH_DIR, botId), { recursive: true, force: true }) } catch {}
   log(`Bot ${botId} removed`)
 }
 
-function addBot(label, botNumber='') {
-  const id='bot'+Date.now()
-  const cfg={ id, label:label||'New Bot', enabled:true, botNumber }
+function addBot(label, botNumber = '') {
+  const id = 'bot' + Date.now()
+  const cleanNumber = normalize(botNumber)
+  const cfg = { id, label: label || 'WhatsApp Bot', enabled: true, botNumber: cleanNumber }
   botsConfig.push(cfg)
-  const state=initBotState(cfg)
+  initBotState(cfg)
   saveBotsConfig()
   startBot(id)
-  log(`Bot ${id} added: ${label}`)
+  log(`Bot ${id} added: "${label}" (${cleanNumber ? '+' + cleanNumber : 'no number'})`)
   return id
 }
 
-function saveBotsConfig() {
-  const arr=[]
-  for (const bot of bots.values()) arr.push({ id:bot.id, label:bot.label, enabled:bot.enabled, botNumber:bot.botNumber })
-  try { fs.writeFileSync(BOTS_FILE,JSON.stringify(arr,null,2)) } catch {}
+function getBestBot(preferBotId) {
+  if (preferBotId) {
+    const b = bots.get(preferBotId)
+    if (b?.ready && b.status === 'open') return b
+  }
+  // Load balancing across all ready bots (lowest sent count today)
+  const readyBots = [...bots.values()].filter(b => b.ready && b.status === 'open')
+  if (!readyBots.length) return null
+  readyBots.sort((a, b) => (a.dailySent?.count || 0) - (b.dailySent?.count || 0))
+  return readyBots[0]
 }
 
-function getBestBot(preferredId) {
-  if (preferredId) {
-    const b=bots.get(preferredId)
-    if (b?.ready) return b
-  }
-  for (const bot of bots.values()) {
-    if (bot.ready && bot.status==='open') return bot
-  }
-  return null
+function anyReady() {
+  for (const b of bots.values()) if (b.ready && b.status === 'open') return true
+  return false
 }
 
-// Initialize all bots
 function initBots() {
   for (const cfg of botsConfig) initBotState(cfg)
-  for (const bot of bots.values()) if (bot.enabled) startBot(bot.id).catch(e=>recordError('startBot-'+bot.id,e))
+  for (const bot of bots.values()) {
+    if (bot.enabled) startBot(bot.id).catch(e => recordError('startBot-' + bot.id, e))
+  }
 }
 
-// ======================= Message Queue =======================
+// ======================= Message Queue Dispatcher =======================
 function sendText(jid, text, preferBotId) {
   const bot = getBestBot(preferBotId)
-  if (!bot) return Promise.reject(new Error('No bot ready. Please link a WhatsApp account from Admin > Bots.'))
+  if (!bot) return Promise.reject(new Error('No WhatsApp bot is connected and ready. Link an account from Admin > WhatsApp Bots.'))
 
   let resolveId, rejectId
-  const p = new Promise((a,b)=>{ resolveId=a; rejectId=b })
+  const p = new Promise((res, rej) => { resolveId = res; rejectId = rej })
 
   bot.chain = bot.chain.then(async () => {
     try {
-      if (!bot.ready) throw new Error('bot not ready')
+      if (!bot.ready) throw new Error(`Bot ${bot.label} is not ready`)
       try {
-        await bot.sock.sendPresenceUpdate('composing',jid)
-        await sleep(rand(1200,2500))
-        await bot.sock.sendPresenceUpdate('paused',jid)
+        await bot.sock.sendPresenceUpdate('composing', jid)
+        await sleep(rand(800, 1800))
+        await bot.sock.sendPresenceUpdate('paused', jid)
       } catch {}
+
       let m
-      try { m=await bot.sock.sendMessage(jid,{text}) }
-      catch(e) {
-        warn(`Bot ${bot.id} send retry:`,e.message)
+      try {
+        m = await bot.sock.sendMessage(jid, { text })
+      } catch(e) {
+        warn(`Bot ${bot.id} message send retry:`, e.message)
         await sleep(2000)
         if (!bot.ready) throw e
-        m=await bot.sock.sendMessage(jid,{text})
+        m = await bot.sock.sendMessage(jid, { text })
       }
-      const id=m?.key?.id
-      if (!id) throw new Error('no message id returned')
-      sentCache.set(id,m.message)
-      sends.set(id,{ to:jid.split('@')[0], status:1, at:Date.now(), botId:bot.id })
-      while (sentCache.size>300) sentCache.delete(sentCache.keys().next().value)
-      while (sends.size>300) sends.delete(sends.keys().next().value)
-      resolveId({ id, botId:bot.id })
-    } catch(e) { rejectId(e) }
-    await sleep(rand(1000,3000))
+
+      const id = m?.key?.id
+      if (!id) throw new Error('No message id returned from WhatsApp')
+      sentCache.set(id, m.message)
+      sends.set(id, { to: jid.split('@')[0], status: 1, at: Date.now(), botId: bot.id })
+      while (sentCache.size > 500) sentCache.delete(sentCache.keys().next().value)
+      while (sends.size > 500)     sends.delete(sends.keys().next().value)
+      resolveId({ id, botId: bot.id })
+    } catch(err) {
+      rejectId(err)
+    }
+    await sleep(rand(1000, 2500))
   })
+
   return p
 }
 
-// ======================= OTP Store =======================
-let otps = new Map()
-try { otps = new Map(Object.entries(JSON.parse(fs.readFileSync(DATA_FILE,'utf8')))) } catch {}
-const persistOtps = () => { try { fs.writeFileSync(DATA_FILE,JSON.stringify(Object.fromEntries(otps))) } catch {} }
-
-const sessions = new Map()
-setInterval(() => {
-  let ch=false
-  for (const [k,v] of otps) if (Date.now()>v.expires+CFG.cooldownSec*1000) { otps.delete(k); ch=true }
-  if (ch) persistOtps()
-  for (const [t,exp] of sessions) if (exp<Date.now()) sessions.delete(t)
-}, 60_000)
-
-// ======================= Rate Limiting =======================
-const ipHits  = new Map()
-const sendLog = []
-const hash    = x => crypto.createHash('sha256').update(x).digest('hex')
-
-function ipAllowed(ip) {
-  const t=Date.now(), arr=(ipHits.get(ip)||[]).filter(x=>t-x<3600_000)
-  if (arr.length>=CFG.ipLimitPerHour) return false
-  arr.push(t); ipHits.set(ip,arr); return true
-}
-function globalAllowed() {
-  const t=Date.now()
-  while (sendLog.length && t-sendLog[0]>3600_000) sendLog.shift()
-  if (sendLog.length>=CFG.maxPerHour) return false
-  sendLog.push(t); return true
-}
-
-// ======================= Admin Auth =======================
-let adminCode=null, lastCodeReq=0
-const loginFails=[]
-function loginBlocked(ip) {
-  const t=Date.now()
-  while (loginFails.length && t-loginFails[0].t>600_000) loginFails.shift()
-  return loginFails.length>=30 || loginFails.filter(f=>f.ip===ip).length>=5
-}
-function adminAuth(req,res,next) {
-  const tok=(req.headers.authorization||'').replace(/^Bearer /,'')
-  const exp=sessions.get(tok)
-  if (!exp||exp<Date.now()) { sessions.delete(tok); return res.status(401).json({ok:false,error:'Login required'}) }
-  next()
-}
-const safeEq = (x,y) => { const a=Buffer.from(String(x)),b=Buffer.from(String(y)); return a.length===b.length && crypto.timingSafeEqual(a,b) }
-
-// ======================= Tunnel / Public URL =======================
-function currentTunnelUrl() {
-  const env=String(process.env.PUBLIC_URL||'').trim().replace(/\/+$/,'')
-  if (env) return env
-  try { const f=fs.readFileSync(FIXED_URL,'utf8').trim(); if(f) return f } catch {}
-  const home=process.env.HOME||''
-  for (const f of [TUNNEL_APP+'-error.log',TUNNEL_APP+'-out.log']) {
-    try {
-      const t=fs.readFileSync(path.join(home,'.pm2/logs',f),'utf8').slice(-30000)
-      const m=t.match(/https:\/\/[a-z0-9-]+\.trycloudflare\.com/g)
-      if (m) return m[m.length-1]
-    } catch {}
-  }
-  try { return fs.readFileSync(URL_FILE,'utf8').trim() } catch { return '' }
-}
-
-let publicOk=null, publicFails=0, publicCheckedAt=0
-async function internetOk() {
-  try { const r=await fetch('https://www.cloudflare.com/cdn-cgi/trace',{signal:AbortSignal.timeout(8000)}); return r.ok } catch { return false }
-}
-function restartTunnel(why) {
-  if (!UNDER_PM2) return false
-  execFile('pm2',['restart',TUNNEL_APP],{timeout:20000},(e,so,se)=>{
-    if(e) recordError('tunnel',new Error(String(se||e.message).slice(0,200)),'pm2')
-    else log(`Tunnel restarted (${why})`)
-  })
-  return true
-}
-async function checkPublic() {
-  const url=currentTunnelUrl(); if(!url){publicOk=null;return}
-  try { const r=await fetch(url+'/health',{signal:AbortSignal.timeout(10000),headers:{'user-agent':'otp-bot-watchdog'}}); publicOk=r.ok }
-  catch { publicOk=false }
-  publicCheckedAt=Date.now()
-  if (publicOk) { publicFails=0; return }
-  publicFails++
-  if (CFG.tunnelWatchdog && UNDER_PM2 && publicFails>=5 && await internetOk()) { publicFails=0; restartTunnel('watchdog') }
-}
-setTimeout(checkPublic,20_000)
-setInterval(checkPublic,60_000)
-
-// ======================= Banner =======================
-function banner(title,value,note) {
-  const w=52, pad=s=>s+' '.repeat(Math.max(0,w-[...s].length))
-  console.log(col.g('+'+'-'.repeat(w+2)+'+'))
-  console.log(col.g('| ')+col.b(pad(title))+col.g(' |'))
-  console.log(col.g('| ')+col.y(pad('   '+value))+col.g(' |'))
-  if(note) console.log(col.g('| ')+pad(note)+col.g(' |'))
-  console.log(col.g('+'+'-'.repeat(w+2)+'+'))
-}
-
-// ======================= Express App =======================
-const app = express()
-app.disable('x-powered-by')
-const trustProxy=(() => { const v=process.env.TRUST_PROXY; if(!v)return 'loopback'; if(v==='true')return true; if(v==='false')return false; return /^\d+$/.test(v)?Number(v):v })()
-app.set('trust proxy',trustProxy)
-app.use(express.json({limit:'10kb'}))
-app.use((req,res,next) => {
-  res.set({
-    'Access-Control-Allow-Origin': '*',
-    'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
-    'Access-Control-Allow-Headers': 'Content-Type, Authorization, x-api-key',
-    'X-Content-Type-Options': 'nosniff',
-    'Referrer-Policy': 'no-referrer'
-  })
-  if (req.method === 'OPTIONS') return res.sendStatus(204)
-  if (req.path.startsWith('/api/')) res.set('Cache-Control','no-store')
-  next()
-})
-app.use(express.static(path.join(__dirname,'public')))
-app.get('/admin', (req,res) => res.redirect('/admin.html'))
-app.get('/app', (req,res) => res.redirect('/app.html'))
-
-const anyReady = () => [...bots.values()].some(b=>b.ready)
-
-// Health
-app.get('/health', (req,res) => res.json({ok:true,name:APP_NAME,version:VERSION,status:anyReady()?'open':'idle',ready:anyReady(),uptime:Math.round(process.uptime()),bots:[...bots.values()].map(b=>({id:b.id,status:b.status,ready:b.ready}))}))
-app.get('/api/status', (req,res) => res.json({name:APP_NAME,status:anyReady()?'open':'idle',ready:anyReady(),signupEnabled:CFG.signupEnabled,adminPassword:passwordEnabled}))
-
-// Client errors
-const clientErrHits=new Map()
-app.post('/api/client-error',(req,res)=>{
-  const t=Date.now(), arr=(clientErrHits.get(req.ip)||[]).filter(x=>t-x<60_000)
-  if(arr.length>=20) return res.json({ok:true})
-  arr.push(t); clientErrHits.set(req.ip,arr)
-  const b=req.body||{}
-  recordError('browser:'+String(b.page||'?').slice(0,20), String(b.message||'unknown').slice(0,300), (String(b.source||'').slice(0,120)+(b.line?':'+Number(b.line):''))||'(browser)')
-  res.json({ok:true})
-})
-
-// ======================= OTP Handler =======================
-async function handleSendOtp(req, res, isV1) {
+// ======================= OTP Store & Rate Limiting =======================
+const otps = new Map() // number -> { hash, expires, attempts }
+try {
+  const d = JSON.parse(fs.readFileSync(OTPS_FILE, 'utf8'))
+  for (const [k, v] of Object.entries(d)) if (v.expires > Date.now()) otps.set(k, v)
+} catch {}
+const persistOtps = () => {
   try {
-    globalStats.requested++
-    if (!CFG.signupEnabled && !isV1) return res.status(403).json({ok:false,error:'Signup is currently disabled.'})
-    if (!anyReady()) return res.status(503).json({ok:false,error:'No bot is online. Please check Admin > Bots.'})
-    if (!ipAllowed(req.ip)) return res.status(429).json({ok:false,error:'Too many requests from your IP.'})
+    const o = {}
+    for (const [k, v] of otps.entries()) if (v.expires > Date.now()) o[k] = v
+    fs.writeFileSync(OTPS_FILE, JSON.stringify(o))
+  } catch {}
+}
 
-    const number=normalize(req.body?.number)
-    if (number.length<11||number.length>15) return res.status(400).json({ok:false,error:'Invalid phone number.'})
-    if (CFG.restrictToAllowed && !allowedSet().has(number)) return res.status(403).json({ok:false,error:'This number is not on the allowed list.'})
+const lastReq = new Map()
+const ipHits  = new Map()
+const numHits = new Map()
+const lastMsg = new Map()
 
-    const prev=otps.get(number)
-    const cd=CFG.cooldownSec*1000
-    if (prev && Date.now()-prev.sentAt<cd) {
-      const w=Math.ceil((cd-(Date.now()-prev.sentAt))/1000)
-      return res.status(429).json({ok:false,error:`Please wait ${w}s before requesting again.`,wait:w})
-    }
-    if (!globalAllowed()) return res.status(429).json({ok:false,error:'Hourly send limit reached.'})
+const hash = val => crypto.createHash('sha256').update(String(val)).digest('hex')
 
-    checkDailyReset()
-    if (dailyGlobal.count>=CFG.dailyLimit) return res.status(429).json({ok:false,error:'Daily OTP limit reached. Try again tomorrow.'})
+// ======================= Admin Session & Auth =======================
+const sessions   = new Map()
+const loginFails = []
+let adminCode    = null
+let lastCodeReq  = 0
 
-    // Check WhatsApp exists
-    const preferBotId=req.body?.botId
-    const bot=getBestBot(preferBotId)
-    if (!bot) return res.status(503).json({ok:false,error:'No bot ready. Link a WhatsApp account from Admin.'})
+const safeEq = (a, b) => {
+  if (typeof a !== 'string' || typeof b !== 'string') return false
+  const ba = Buffer.from(a), bb = Buffer.from(b)
+  return ba.length === bb.length && crypto.timingSafeEqual(ba, bb)
+}
 
-    let jid=number+'@s.whatsapp.net'
-    try {
-      const c=await bot.sock.onWhatsApp(jid)
-      if (Array.isArray(c)) {
-        const hit=c.find(x=>x.exists)
-        if (!hit) return res.status(404).json({ok:false,error:'No WhatsApp account found for this number.'})
-        jid=hit.jid
-      }
-    } catch(e) { warn('onWhatsApp check failed:',e.message) }
+function loginBlocked(ip) {
+  const t = Date.now()
+  const recent = loginFails.filter(f => f.ip === ip && t - f.t < 600_000)
+  return recent.length >= 8
+}
 
-    const otp=String(crypto.randomInt(100000,1000000))
-    otps.set(number,{hash:hash(otp),expires:Date.now()+CFG.otpTtlSec*1000,attempts:0,sentAt:Date.now()})
-    persistOtps()
+function adminAuth(req, res, next) {
+  const h = req.headers.authorization || ''
+  const t = h.replace(/^Bearer /, '').trim()
+  if (t && sessions.has(t) && sessions.get(t) > Date.now()) {
+    sessions.set(t, Date.now() + 2 * 3600_000) // extend session
+    return next()
+  }
+  res.status(401).json({ ok: false, error: 'Unauthorized admin session' })
+}
 
-    const text=CFG.message.replace('{OTP}',otp).replace('{MINUTES}',Math.round(CFG.otpTtlSec/60))
-    let msgId, usedBotId
-    try {
-      const result=await sendText(jid,text,preferBotId)
-      msgId=result.id; usedBotId=result.botId
-    } catch(e) {
-      otps.delete(number); persistOtps()
-      globalStats.failed++
-      recordError('send-otp',e)
-      return res.status(500).json({ok:false,error:'Could not send message. '+e.message})
-    }
+// ======================= Express HTTP App =======================
+const app = express()
+app.set('trust proxy', !!process.env.TRUST_PROXY)
+app.use(express.json({ limit: '2mb' }))
+app.use(express.urlencoded({ extended: true }))
 
+// Universal CORS Middleware
+app.use((req, res, next) => {
+  res.setHeader('Access-Control-Allow-Origin', '*')
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS')
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, x-api-key')
+  if (req.method === 'OPTIONS') return res.sendStatus(204)
+  next()
+})
+
+// Serve static frontend
+app.use(express.static(path.join(__dirname, 'public')))
+
+// Health & Status
+app.get('/health', (req, res) => res.json({ status: 'ok', name: APP_NAME, version: VERSION, ready: anyReady() }))
+app.get('/api/status', (req, res) => res.json({ name: APP_NAME, ready: anyReady(), botCount: bots.size }))
+
+// ======================= OTP Endpoints =======================
+async function handleSendOtp(req, res, isV1 = false) {
+  checkDailyReset()
+  const rawNumber = req.body?.number
+  const preferBotId = req.body?.botId
+  if (!rawNumber) return res.status(400).json({ ok: false, error: 'Phone number is required.' })
+
+  const number = normalize(rawNumber)
+  if (number.length < 10 || number.length > 15) {
+    return res.status(400).json({ ok: false, error: 'Invalid phone number format. Must be a valid mobile number.' })
+  }
+
+  if (CFG.restrictToAllowed && !allowedSet().has(number)) {
+    return res.status(403).json({ ok: false, error: 'Number not allowed in test mode.' })
+  }
+
+  // Rate Limiting
+  const now = Date.now()
+  const prev = lastReq.get(number) || 0
+  if (now - prev < CFG.cooldownSec * 1000) {
+    const remain = Math.ceil((CFG.cooldownSec * 1000 - (now - prev)) / 1000)
+    return res.status(429).json({ ok: false, error: `Please wait ${remain} seconds before requesting another code.` })
+  }
+
+  // Daily global limit
+  if (CFG.dailyLimit > 0 && dailyGlobal.count >= CFG.dailyLimit) {
+    return res.status(429).json({ ok: false, error: 'Daily gateway OTP limit reached.' })
+  }
+
+  // IP rate limiting
+  const ip = req.ip
+  const ipList = (ipHits.get(ip) || []).filter(t => now - t < 3600_000)
+  if (ipList.length >= CFG.ipLimitPerHour) {
+    return res.status(429).json({ ok: false, error: 'Hourly IP limit reached.' })
+  }
+  ipList.push(now)
+  ipHits.set(ip, ipList)
+
+  // Hourly number limit
+  const numList = (numHits.get(number) || []).filter(t => now - t < 3600_000)
+  if (numList.length >= CFG.maxPerHour) {
+    return res.status(429).json({ ok: false, error: 'Hourly limit for this phone number reached.' })
+  }
+  numList.push(now)
+  numHits.set(number, numList)
+
+  // Generate 6-digit OTP
+  const otp = String(crypto.randomInt(100000, 1000000))
+  const ttlMin = Math.round(CFG.otpTtlSec / 60)
+  const text = CFG.message.replace(/\{OTP\}/g, otp).replace(/\{MINUTES\}/g, String(ttlMin))
+  const jid = number + '@s.whatsapp.net'
+
+  otps.set(number, { hash: hash(otp), expires: now + CFG.otpTtlSec * 1000, attempts: 0 })
+  persistOtps()
+  lastReq.set(number, now)
+  globalStats.requested++
+
+  try {
+    const { id: msgId, botId: usedBotId } = await sendText(jid, text, preferBotId)
     globalStats.accepted++
-    const usedBot=bots.get(usedBotId)
+
+    const usedBot = bots.get(usedBotId)
     if (usedBot) {
       usedBot.stats.accepted++
-      const d=new Date().toISOString().split('T')[0]
-      if (usedBot.dailySent.date!==d) usedBot.dailySent={date:d,count:0}
+      const today = new Date().toISOString().split('T')[0]
+      if (usedBot.dailySent.date !== today) usedBot.dailySent = { date: today, count: 0 }
       usedBot.dailySent.count++
     }
     dailyGlobal.count++
-    try { fs.writeFileSync(DAILY_FILE,JSON.stringify(dailyGlobal)) } catch {}
-    if (isV1 && req.apiKey) { req.apiKey.usedToday++; saveApiKeys() }
+    try { fs.writeFileSync(DAILY_FILE, JSON.stringify(dailyGlobal)) } catch {}
 
-    lastMsg.set(number,msgId)
-    while (lastMsg.size>500) lastMsg.delete(lastMsg.keys().next().value)
-    log(`OTP sent -> ${mask(number)} via ${usedBotId} | msg ${msgId.slice(0,6)}`)
-    trackDelivery(msgId,usedBotId)
-    res.json({ok:true,number,state:'sent'})
-  } catch(e) {
+    if (isV1 && req.apiKey) {
+      req.apiKey.usedToday++
+      saveApiKeys()
+    }
+
+    lastMsg.set(number, msgId)
+    log(`OTP sent to ${mask(number)} via ${usedBotId} (msg: ${msgId.slice(0, 6)})`)
+    trackDelivery(msgId, usedBotId)
+    res.json({ ok: true, number, state: 'sent' })
+  } catch(err) {
+    otps.delete(number)
+    persistOtps()
     globalStats.failed++
-    recordError('send-otp',e)
-    res.status(500).json({ok:false,error:'Server error.'})
+    recordError('send-otp', err)
+    res.status(500).json({ ok: false, error: 'Could not send WhatsApp OTP: ' + err.message })
   }
 }
 
-app.post('/api/send-otp',         (req,res)=>handleSendOtp(req,res,false))
-app.post('/api/v1/send-otp', apiKeyAuth, (req,res)=>handleSendOtp(req,res,true))
-
-// Delivery status
-const deliveryHits=new Map()
-app.get('/api/delivery',(req,res)=>{
-  const t=Date.now(), arr=(deliveryHits.get(req.ip)||[]).filter(x=>t-x<60_000)
-  if(arr.length>=60) return res.status(429).json({ok:false})
-  arr.push(t); deliveryHits.set(req.ip,arr)
-  const id=lastMsg.get(normalize(req.query.number))
-  const r=id&&sends.get(id)
-  if(!r) return res.json({ok:true,known:false})
-  res.json({ok:true,known:true,status:STATUS[r.status]||String(r.status),delivered:r.status>=3})
-})
+app.post('/api/send-otp',         (req, res) => handleSendOtp(req, res, false))
+app.post('/api/v1/send-otp', apiKeyAuth, (req, res) => handleSendOtp(req, res, true))
 
 // Verify OTP
-function handleVerify(req,res) {
-  const number=normalize(req.body?.number)
-  const otp=String(req.body?.otp||'').trim()
-  const rec=otps.get(number)
-  if (!rec) return res.status(400).json({ok:false,error:'Request a code first.'})
-  if (Date.now()>rec.expires) { otps.delete(number); persistOtps(); return res.status(400).json({ok:false,error:'Code expired.'}) }
-  if (++rec.attempts>MAX_ATTEMPTS) { otps.delete(number); persistOtps(); return res.status(429).json({ok:false,error:'Too many wrong attempts.'}) }
-  if (hash(otp)!==rec.hash) { persistOtps(); return res.status(400).json({ok:false,error:'Wrong code.'}) }
-  otps.delete(number); persistOtps(); globalStats.verified++
-  res.json({ok:true,message:'Verified successfully'})
+function handleVerifyOtp(req, res) {
+  const number = normalize(req.body?.number)
+  const otp    = String(req.body?.otp || '').trim()
+  const record = otps.get(number)
+
+  if (!record) return res.status(400).json({ ok: false, error: 'Please request a verification code first.' })
+  if (Date.now() > record.expires) {
+    otps.delete(number)
+    persistOtps()
+    return res.status(400).json({ ok: false, error: 'Verification code has expired.' })
+  }
+  if (++record.attempts > MAX_ATTEMPTS) {
+    otps.delete(number)
+    persistOtps()
+    return res.status(429).json({ ok: false, error: 'Too many incorrect attempts.' })
+  }
+  if (hash(otp) !== record.hash) {
+    persistOtps()
+    return res.status(400).json({ ok: false, error: 'Invalid verification code.' })
+  }
+
+  otps.delete(number)
+  persistOtps()
+  globalStats.verified++
+  res.json({ ok: true, message: 'Phone number verified successfully!' })
 }
-app.post('/api/verify-otp',         handleVerify)
-app.post('/api/v1/verify-otp', apiKeyAuth, handleVerify)
-app.get('/api/v1/status', apiKeyAuth, (req,res)=>res.json({name:APP_NAME,ready:anyReady(),bots:[...bots.values()].filter(b=>b.enabled).map(b=>({id:b.id,ready:b.ready,status:b.status}))}))
 
-// ======================= Admin Routes =======================
-app.post('/api/admin/request-code',(req,res)=>{
-  if (loginBlocked(req.ip)) return res.status(429).json({ok:false,error:'Too many attempts. Wait 10 minutes.'})
-  if (Date.now()-lastCodeReq<15_000) return res.status(429).json({ok:false,error:'Wait a few seconds.'})
-  lastCodeReq=Date.now()
-  if (!adminCode||adminCode.expires<Date.now()) adminCode={code:String(crypto.randomInt(100000,1000000)),expires:Date.now()+5*60_000}
-  banner('ADMIN VERIFICATION CODE',adminCode.code,'Valid for 5 minutes')
-  writeCodeFile('ADMIN-CODE.txt',`ADMIN VERIFICATION CODE: ${adminCode.code}\nValid until ${new Date(adminCode.expires).toISOString()}`)
-  setTimeout(()=>{ if(!adminCode||adminCode.expires<Date.now()) removeCodeFile('ADMIN-CODE.txt') },5*60_000+1000)
-  push('warn','Admin code printed in terminal')
-  res.json({ok:true})
+app.post('/api/verify-otp',         handleVerifyOtp)
+app.post('/api/v1/verify-otp', apiKeyAuth, handleVerifyOtp)
+app.get('/api/v1/status', apiKeyAuth, (req, res) => res.json({
+  ok: true,
+  name: APP_NAME,
+  version: VERSION,
+  ready: anyReady(),
+  bots: [...bots.values()].map(b => ({ id: b.id, label: b.label, ready: b.ready, status: b.status }))
+}))
+
+// ======================= Admin APIs =======================
+app.post('/api/admin/request-code', (req, res) => {
+  if (loginBlocked(req.ip)) return res.status(429).json({ ok: false, error: 'Too many login attempts. Please wait 10 minutes.' })
+  if (Date.now() - lastCodeReq < 12_000) return res.status(429).json({ ok: false, error: 'Please wait a few seconds before requesting another code.' })
+  lastCodeReq = Date.now()
+
+  if (!adminCode || adminCode.expires < Date.now()) {
+    adminCode = { code: String(crypto.randomInt(100000, 1000000)), expires: Date.now() + 5 * 60_000 }
+  }
+  banner('ADMIN VERIFICATION CODE', adminCode.code, 'Valid for 5 minutes')
+  writeCodeFile('ADMIN-CODE.txt', `ADMIN VERIFICATION CODE: ${adminCode.code}\nValid until: ${new Date(adminCode.expires).toISOString()}`)
+  res.json({ ok: true })
 })
 
-app.post('/api/admin/login',(req,res)=>{
-  if (loginBlocked(req.ip)) return res.status(429).json({ok:false,error:'Too many attempts. Wait 10 minutes.'})
-  const codeValid=adminCode&&adminCode.expires>=Date.now()
-  if (!codeValid&&!passwordEnabled) return res.status(400).json({ok:false,error:'Request a code first.'})
-  const given=String(req.body?.code||'').trim()
-  const ok=(codeValid&&safeEq(given,adminCode.code))||(passwordEnabled&&safeEq(given,ADMIN_PASSWORD))
-  if (!ok) { loginFails.push({ip:req.ip,t:Date.now()}); warn('Admin login: wrong code'); return res.status(400).json({ok:false,error:'Wrong code.'}) }
-  if (codeValid&&safeEq(given,adminCode.code)) { adminCode=null; removeCodeFile('ADMIN-CODE.txt') }
-  const token=crypto.randomBytes(24).toString('hex')
-  sessions.set(token,Date.now()+2*3600_000)
-  log('Admin login OK from',req.ip)
-  res.json({ok:true,token})
+app.post('/api/admin/login', (req, res) => {
+  if (loginBlocked(req.ip)) return res.status(429).json({ ok: false, error: 'Too many login attempts. Please wait 10 minutes.' })
+  const codeValid = adminCode && adminCode.expires >= Date.now()
+  if (!codeValid && !passwordEnabled) return res.status(400).json({ ok: false, error: 'Request a verification code first.' })
+
+  const given = String(req.body?.code || '').trim()
+  const ok = (codeValid && safeEq(given, adminCode.code)) || (passwordEnabled && safeEq(given, ADMIN_PASSWORD))
+  if (!ok) {
+    loginFails.push({ ip: req.ip, t: Date.now() })
+    return res.status(400).json({ ok: false, error: 'Incorrect verification code or password.' })
+  }
+
+  if (codeValid && safeEq(given, adminCode.code)) {
+    adminCode = null
+    removeCodeFile('ADMIN-CODE.txt')
+  }
+  const token = crypto.randomBytes(32).toString('hex')
+  sessions.set(token, Date.now() + 3 * 3600_000)
+  log(`Admin login successful from IP: ${req.ip}`)
+  res.json({ ok: true, token })
 })
 
-app.post('/api/admin/logout-session',adminAuth,(req,res)=>{ sessions.delete((req.headers.authorization||'').replace(/^Bearer /,'')); res.json({ok:true}) })
+app.post('/api/admin/logout-session', adminAuth, (req, res) => {
+  const token = (req.headers.authorization || '').replace(/^Bearer /, '').trim()
+  sessions.delete(token)
+  res.json({ ok: true })
+})
 
-app.get('/api/admin/state',adminAuth,(req,res)=>{
+app.get('/api/admin/state', adminAuth, (req, res) => {
   res.json({
-    ok:true, name:APP_NAME, version:VERSION,
-    status: anyReady()?'open':'idle', ready:anyReady(),
-    bots: [...bots.values()].map(b=>({
-      id:b.id, label:b.label, status:b.status, ready:b.ready,
-      botNumber:b.botNumber, me:b.sock?.user?.id||null,
-      qr:b.lastQr, pairCode:b.pairCode, lastError:b.lastError,
-      uptime: b.openedAt?Math.round((Date.now()-b.openedAt)/1000):0,
-      history:b.history, dailySent:b.dailySent, stats:b.stats
+    ok: true,
+    name: APP_NAME,
+    version: VERSION,
+    status: anyReady() ? 'open' : 'idle',
+    ready: anyReady(),
+    bots: [...bots.values()].map(b => ({
+      id: b.id,
+      label: b.label,
+      status: b.status,
+      ready: b.ready,
+      botNumber: b.botNumber,
+      qr: b.lastQr,
+      pairCode: b.pairCode,
+      lastError: b.lastError,
+      uptime: b.openedAt ? Math.round((Date.now() - b.openedAt) / 1000) : 0,
+      dailySent: b.dailySent,
+      stats: b.stats
     })),
-    apiKeys: apiKeys.map(k=>({id:k.id,label:k.label,key:k.key.slice(0,8)+'...',dailyLimit:k.dailyLimit,usedToday:k.usedToday,enabled:k.enabled,createdAt:k.createdAt})),
-    stats: globalStats, dailyGlobal,
-    settings: {
-      signupEnabled:CFG.signupEnabled, restrictToAllowed:CFG.restrictToAllowed,
-      allowedNumbers:CFG.allowedNumbers, otpTtlSec:CFG.otpTtlSec, cooldownSec:CFG.cooldownSec,
-      maxPerHour:CFG.maxPerHour, ipLimitPerHour:CFG.ipLimitPerHour, warmupSec:CFG.warmupSec,
-      tunnelWatchdog:CFG.tunnelWatchdog, message:CFG.message, dailyLimit:CFG.dailyLimit
-    },
-    recent: [...sends.entries()].slice(-10).reverse().map(([id,r])=>({id:id.slice(0,8),to:mask(r.to),status:STATUS[r.status]||String(r.status),botId:r.botId,ageSec:Math.round((Date.now()-r.at)/1000)})),
-    underPm2:UNDER_PM2, customDataDir:DATA_DIR!==__dirname, passwordEnabled,
-    publicUrl:currentTunnelUrl(), publicOk, publicCheckedAt, fixedUrl:fs.existsSync(FIXED_URL),
-    port:PORT, uptime:Math.round(process.uptime())
+    apiKeys: apiKeys.map(k => ({
+      id: k.id,
+      label: k.label,
+      key: k.key.slice(0, 8) + '...' + k.key.slice(-4),
+      dailyLimit: k.dailyLimit,
+      usedToday: k.usedToday,
+      enabled: k.enabled,
+      createdAt: k.createdAt
+    })),
+    stats: globalStats,
+    dailyGlobal,
+    settings: { ...CFG },
+    recent: [...sends.entries()].slice(-12).reverse().map(([id, r]) => ({
+      id: id.slice(0, 8),
+      to: mask(r.to),
+      status: STATUS[r.status] || String(r.status),
+      botId: r.botId,
+      ageSec: Math.round((Date.now() - r.at) / 1000)
+    })),
+    publicUrl: currentTunnelUrl(),
+    publicOk,
+    port: PORT,
+    uptime: Math.round(process.uptime())
   })
 })
 
-app.get('/api/admin/console',adminAuth,(req,res)=>res.json({ok:true,logs:ring.slice(-100),errors:errors.slice().reverse()}))
-app.post('/api/admin/console/clear',adminAuth,(req,res)=>{ errors.length=0; res.json({ok:true}) })
-
-app.post('/api/admin/settings',adminAuth,(req,res)=>{
-  const b=req.body||{}, upd={}
-  if('signupEnabled'   in b) upd.signupEnabled   =!!b.signupEnabled
-  if('restrictToAllowed' in b) upd.restrictToAllowed=!!b.restrictToAllowed
-  if('tunnelWatchdog'  in b) upd.tunnelWatchdog  =!!b.tunnelWatchdog
-  if('allowedNumbers'  in b) {
-    const raw=Array.isArray(b.allowedNumbers)?b.allowedNumbers.join('\n'):String(b.allowedNumbers||'')
-    upd.allowedNumbers=[...new Set(raw.split(/[\s,]+/).map(normalize).filter(n=>n.length>=11&&n.length<=15))]
-  }
-  for (const [k,min,max] of [['otpTtlSec',60,1800],['cooldownSec',30,600],['maxPerHour',1,500],['ipLimitPerHour',1,100],['warmupSec',0,300],['dailyLimit',1,100000]]) {
-    if(k in b){ const n=Number(b[k]); if(!Number.isFinite(n)||n<min||n>max) return res.status(400).json({ok:false,error:`${k} must be between ${min} and ${max}`}); upd[k]=Math.round(n) }
-  }
-  if('message' in b){ const m=String(b.message); if(!m.includes('{OTP}')||m.length>500) return res.status(400).json({ok:false,error:'Message must contain {OTP} (max 500 chars)'}); upd.message=m }
-  Object.assign(CFG,upd); saveConfig()
-  log('Settings saved')
-  res.json({ok:true})
+app.get('/api/admin/console', adminAuth, (req, res) => {
+  res.json({ ok: true, logs: ring.slice(-100).map(r => r.m), errors: errors.slice().reverse() })
+})
+app.post('/api/admin/console/clear', adminAuth, (req, res) => {
+  errors.length = 0
+  res.json({ ok: true })
 })
 
-// Bot management
-app.get('/api/admin/bots',adminAuth,(req,res)=>res.json({ok:true,bots:[...bots.values()].map(b=>({id:b.id,label:b.label,status:b.status,ready:b.ready,botNumber:b.botNumber}))}))
-
-app.post('/api/admin/bots/add',adminAuth,(req,res)=>{
-  const id=addBot(req.body?.label||'New Bot', req.body?.botNumber||'')
-  res.json({ok:true,id})
+// Bot Management Endpoints
+app.post('/api/admin/bots/add', adminAuth, (req, res) => {
+  const label = String(req.body?.label || 'WhatsApp Bot').trim()
+  const rawNum = req.body?.botNumber || ''
+  const botNumber = normalize(rawNum)
+  const id = addBot(label, botNumber)
+  res.json({ ok: true, id, botNumber })
 })
 
-app.post('/api/admin/bots/:id/remove',adminAuth,(req,res)=>{
-  if (!bots.has(req.params.id)) return res.status(404).json({ok:false,error:'Bot not found'})
+app.post('/api/admin/bots/:id/remove', adminAuth, (req, res) => {
+  if (!bots.has(req.params.id)) return res.status(404).json({ ok: false, error: 'Bot not found' })
   removeBot(req.params.id)
-  res.json({ok:true})
+  res.json({ ok: true })
 })
 
-app.post('/api/admin/bots/:id/new-code',adminAuth,async(req,res)=>{
-  const bot=bots.get(req.params.id)
-  if (!bot) return res.status(404).json({ok:false,error:'Bot not found'})
-  const mode=req.body?.mode==='qr'?'qr':'pair'
-  bot.linkMode=mode; bot.autoLinkTries=0; bot.lastError=null
-  // If bot number changed
-  if (req.body?.botNumber) { bot.botNumber=normalize(req.body.botNumber); saveBotsConfig() }
-  // Wipe auth and restart
-  try { fs.rmSync(path.join(AUTH_DIR,bot.id),{recursive:true,force:true}) } catch {}
-  log(`Bot ${bot.id}: generating new ${mode} code`)
-  startBot(bot.id).catch(e=>recordError('startBot',e))
-  res.json({ok:true})
+app.post('/api/admin/bots/:id/new-code', adminAuth, async (req, res) => {
+  const bot = bots.get(req.params.id)
+  if (!bot) return res.status(404).json({ ok: false, error: 'Bot not found' })
+
+  const mode = req.body?.mode === 'qr' ? 'qr' : 'pair'
+  bot.linkMode = mode
+  bot.lastError = null
+  bot.pairRequested = false
+  bot.pairCode = null
+  bot.lastQr = null
+
+  if (req.body?.botNumber) {
+    bot.botNumber = normalize(req.body.botNumber)
+  }
+
+  const found = botsConfig.find(b => b.id === bot.id)
+  if (found) {
+    found.botNumber = bot.botNumber
+    if (req.body?.label) found.label = String(req.body.label).trim()
+  }
+  saveBotsConfig()
+
+  // Wipe auth directory for fresh link
+  try { fs.rmSync(path.join(AUTH_DIR, bot.id), { recursive: true, force: true }) } catch {}
+  log(`Bot ${bot.id}: Requesting new ${mode} code (Phone: +${bot.botNumber})`)
+  startBot(bot.id).catch(e => recordError('startBot', e))
+  res.json({ ok: true, botNumber: bot.botNumber })
 })
 
-app.post('/api/admin/bots/:id/unlink',adminAuth,async(req,res)=>{
-  const bot=bots.get(req.params.id)
-  if (!bot) return res.status(404).json({ok:false,error:'Bot not found'})
-  if (!req.body?.confirm) return res.status(409).json({ok:false,needConfirm:true,error:'Bot will be unlinked from WhatsApp.'})
-  try { if(bot.sock) await Promise.race([bot.sock.logout(),sleep(5000)]) } catch {}
-  try { fs.rmSync(path.join(AUTH_DIR,bot.id),{recursive:true,force:true}) } catch {}
-  bot.autoLinkTries=0
-  startBot(bot.id).catch(e=>recordError('startBot',e))
-  res.json({ok:true})
+app.post('/api/admin/bots/:id/restart', adminAuth, (req, res) => {
+  const bot = bots.get(req.params.id)
+  if (!bot) return res.status(404).json({ ok: false, error: 'Bot not found' })
+  bot.lastError = null
+  if (bot.sock) {
+    try { bot.sock.end(new Error('Manual restart requested')) } catch {}
+  } else {
+    startBot(bot.id).catch(e => recordError('startBot', e))
+  }
+  res.json({ ok: true })
 })
 
-app.post('/api/admin/bots/:id/restart',adminAuth,(req,res)=>{
-  const bot=bots.get(req.params.id)
-  if (!bot) return res.status(404).json({ok:false,error:'Bot not found'})
-  bot.autoLinkTries=0; bot.lastError=null
-  if (bot.sock) { try { bot.sock.end(new Error('manual restart')) } catch {} }
-  else startBot(bot.id).catch(e=>recordError('startBot',e))
-  res.json({ok:true})
+app.post('/api/admin/bots/:id/unlink', adminAuth, async (req, res) => {
+  const bot = bots.get(req.params.id)
+  if (!bot) return res.status(404).json({ ok: false, error: 'Bot not found' })
+  try { if (bot.sock) await Promise.race([bot.sock.logout(), sleep(4000)]) } catch {}
+  try { fs.rmSync(path.join(AUTH_DIR, bot.id), { recursive: true, force: true }) } catch {}
+  bot.pairRequested = false
+  bot.pairCode = null
+  bot.lastQr = null
+  startBot(bot.id).catch(e => recordError('startBot', e))
+  res.json({ ok: true })
 })
 
-// Direct Chat / Send custom message from specific bot
+// Direct Chat Endpoint
 app.post('/api/admin/bots/:id/send', adminAuth, async (req, res) => {
   const bot = bots.get(req.params.id)
   if (!bot) return res.status(404).json({ ok: false, error: 'Bot not found' })
   if (!bot.ready || !bot.sock) {
-    return res.status(503).json({ ok: false, error: `Bot "${bot.label}" is not connected or ready yet. Status: ${bot.status}` })
+    return res.status(503).json({ ok: false, error: `Bot "${bot.label}" is not connected yet (Status: ${bot.status}).` })
   }
 
   const rawNumber = req.body?.number
   const message = String(req.body?.message || '').trim()
-
   if (!rawNumber) return res.status(400).json({ ok: false, error: 'Recipient phone number is required.' })
   const number = normalize(rawNumber)
-  if (number.length < 11 || number.length > 15) return res.status(400).json({ ok: false, error: 'Invalid phone number format (e.g. 03XXXXXXXXX or 923XXXXXXXXX).' })
-  if (!message) return res.status(400).json({ ok: false, error: 'Message text cannot be empty.' })
+  if (number.length < 10 || number.length > 15) {
+    return res.status(400).json({ ok: false, error: 'Invalid phone number format.' })
+  }
+  if (!message) return res.status(400).json({ ok: false, error: 'Message content cannot be empty.' })
 
   try {
-    let jid = number + '@s.whatsapp.net'
-    try {
-      const c = await bot.sock.onWhatsApp(jid)
-      if (Array.isArray(c)) {
-        const hit = c.find(x => x.exists)
-        if (!hit) return res.status(404).json({ ok: false, error: 'No WhatsApp account found for this recipient number.' })
-        jid = hit.jid
-      }
-    } catch(e) {
-      warn(`Bot ${bot.id} onWhatsApp check warning:`, e.message)
-    }
-
+    const jid = number + '@s.whatsapp.net'
     const { id: msgId } = await sendText(jid, message, bot.id)
     trackDelivery(msgId, bot.id)
-    log(`Direct message sent via Bot ${bot.id} -> ${mask(number)} | msg: ${msgId.slice(0,6)}`)
-    res.json({ ok: true, msgId, number, state: 'sent', botId: bot.id, botLabel: bot.label })
-  } catch(e) {
-    recordError('direct-send-'+bot.id, e)
-    res.status(500).json({ ok: false, error: 'Failed to send message: ' + (e.message || e) })
+    log(`Direct message sent via Bot ${bot.id} to ${mask(number)} | msg: ${msgId.slice(0, 6)}`)
+    res.json({ ok: true, msgId, number, botLabel: bot.label })
+  } catch(err) {
+    res.status(500).json({ ok: false, error: err.message || 'Failed to send message.' })
   }
 })
 
-app.get('/api/admin/bots/:id/state',adminAuth,(req,res)=>{
-  const bot=bots.get(req.params.id)
-  if (!bot) return res.status(404).json({ok:false,error:'Bot not found'})
-  res.json({ok:true,bot:{id:bot.id,label:bot.label,status:bot.status,ready:bot.ready,botNumber:bot.botNumber,me:bot.sock?.user?.id,qr:bot.lastQr,pairCode:bot.pairCode,lastError:bot.lastError,history:bot.history,stats:bot.stats,dailySent:bot.dailySent}})
-})
-
-// API Key management
-app.get('/api/admin/keys',adminAuth,(req,res)=>res.json({ok:true,keys:apiKeys}))
-
-app.post('/api/admin/keys/generate',adminAuth,(req,res)=>{
-  const k={
-    id:'k'+Date.now(),
-    key: crypto.randomBytes(32).toString('hex'),
-    label: String(req.body?.label||'API Key').slice(0,80),
+// API Keys Endpoints
+app.get('/api/admin/keys', adminAuth, (req, res) => res.json({ ok: true, keys: apiKeys }))
+app.post('/api/admin/keys/generate', adminAuth, (req, res) => {
+  const label = String(req.body?.label || 'API Key').trim()
+  const dailyLimit = Number(req.body?.dailyLimit) || 0
+  const key = crypto.randomBytes(32).toString('hex')
+  const newObj = {
+    id: 'k_' + Date.now(),
+    key,
+    label,
     createdAt: Date.now(),
     enabled: true,
-    dailyLimit: Math.max(0,parseInt(req.body?.dailyLimit)||0),
+    dailyLimit,
     usedToday: 0,
     lastUsedDate: ''
   }
-  apiKeys.push(k); saveApiKeys()
-  log(`API key generated: ${k.label}`)
-  res.json({ok:true,key:k.key,id:k.id,label:k.label})
+  apiKeys.push(newObj)
+  saveApiKeys()
+  res.json({ ok: true, key: newObj })
+})
+app.post('/api/admin/keys/:id/toggle', adminAuth, (req, res) => {
+  const k = apiKeys.find(x => x.id === req.params.id)
+  if (!k) return res.status(404).json({ ok: false, error: 'Key not found' })
+  k.enabled = !k.enabled
+  saveApiKeys()
+  res.json({ ok: true, enabled: k.enabled })
+})
+app.post('/api/admin/keys/:id/revoke', adminAuth, (req, res) => {
+  apiKeys = apiKeys.filter(x => x.id !== req.params.id)
+  saveApiKeys()
+  res.json({ ok: true })
 })
 
-app.post('/api/admin/keys/:id/revoke',adminAuth,(req,res)=>{
-  apiKeys=apiKeys.filter(k=>k.id!==req.params.id); saveApiKeys()
-  res.json({ok:true})
-})
-
-app.post('/api/admin/keys/:id/toggle',adminAuth,(req,res)=>{
-  const k=apiKeys.find(x=>x.id===req.params.id)
-  if (k) { k.enabled=!k.enabled; saveApiKeys() }
-  res.json({ok:true,enabled:k?.enabled})
-})
-
-app.put('/api/admin/keys/:id',adminAuth,(req,res)=>{
-  const k=apiKeys.find(x=>x.id===req.params.id)
-  if (k) {
-    if (req.body?.label) k.label=String(req.body.label).slice(0,80)
-    if ('dailyLimit' in req.body) k.dailyLimit=Math.max(0,parseInt(req.body.dailyLimit)||0)
-    saveApiKeys()
+// Settings Endpoint
+app.post('/api/admin/settings', adminAuth, (req, res) => {
+  const b = req.body || {}
+  const upd = {}
+  if ('signupEnabled' in b) upd.signupEnabled = !!b.signupEnabled
+  if ('restrictToAllowed' in b) upd.restrictToAllowed = !!b.restrictToAllowed
+  if ('allowedNumbers' in b) {
+    const raw = Array.isArray(b.allowedNumbers) ? b.allowedNumbers.join('\n') : String(b.allowedNumbers || '')
+    upd.allowedNumbers = [...new Set(raw.split(/[\s,]+/).map(normalize).filter(n => n.length >= 10 && n.length <= 15))]
   }
-  res.json({ok:true})
+  for (const [k, min, max] of [
+    ['otpTtlSec', 60, 1800],
+    ['cooldownSec', 30, 600],
+    ['maxPerHour', 1, 500],
+    ['ipLimitPerHour', 1, 100],
+    ['warmupSec', 0, 300],
+    ['dailyLimit', 1, 100000]
+  ]) {
+    if (k in b) {
+      const n = Number(b[k])
+      if (!Number.isFinite(n) || n < min || n > max) return res.status(400).json({ ok: false, error: `${k} must be between ${min} and ${max}` })
+      upd[k] = Math.round(n)
+    }
+  }
+  if ('message' in b) {
+    const m = String(b.message)
+    if (!m.includes('{OTP}')) return res.status(400).json({ ok: false, error: 'Message must contain {OTP} placeholder.' })
+    upd.message = m
+  }
+  Object.assign(CFG, upd)
+  saveConfig()
+  log('Gateway settings saved successfully')
+  res.json({ ok: true })
 })
 
-// Tunnel management
-app.post('/api/admin/check-public',adminAuth,async(req,res)=>{ await checkPublic(); res.json({ok:true,publicOk,publicUrl:currentTunnelUrl()}) })
-app.post('/api/admin/restart-tunnel',adminAuth,(req,res)=>{
-  if (!restartTunnel('admin')) return res.status(400).json({ok:false,error:'Not running under pm2.'})
-  res.json({ok:true})
+// ======================= Start HTTP Server =======================
+const server = http.createServer(app)
+server.listen(PORT, HOST, () => {
+  const url = `http://${HOST === '0.0.0.0' ? 'localhost' : HOST}:${PORT}`
+  console.log(col.g(`\n${'═'.repeat(54)}`))
+  console.log(col.b(`  🚀 ${APP_NAME} v${VERSION} Gateway Started`))
+  console.log(col.c(`  Local Admin:   ${url}/admin.html`))
+  console.log(col.c(`  Demo Bank App: ${url}/app.html`))
+  console.log(col.c(`  Health Status: ${url}/health`))
+  console.log(col.g(`${'═'.repeat(54)}\n`))
+  initBots()
 })
-
-// Error handler
-app.use((e,req,res,next)=>{
-  if (e?.type==='entity.parse.failed') return res.status(400).json({ok:false,error:'Invalid JSON.'})
-  recordError('express '+req.path,e)
-  res.status(500).json({ok:false,error:'Server error.'})
-})
-
-// ======================= Start =======================
-const server=app.listen(PORT,HOST,()=>{
-  console.log('')
-  console.log(col.g(col.b(`  ${APP_NAME} v${VERSION}`)))
-  log(`Listening on ${HOST}:${PORT} | Node ${process.version} | ${UNDER_PM2?'pm2 mode':'standalone'}`)
-  log(`Local:  http://localhost:${PORT}   Admin: /admin.html`)
-  log(`Data:   ${DATA_DIR}`)
-  log(`Public: ${currentTunnelUrl()||'(not set)'}`)
-  log(`Admin login: open /admin.html -> Request Code -> check this console${CODE_FILES?' or ADMIN-CODE.txt':''}${passwordEnabled?' (ADMIN_PASSWORD also works)':''}`)
-})
-server.on('error',e=>{ recordError('http',e); console.error(col.r(`ERROR: ${e.message}`)); process.exit(1) })
-
-setInterval(()=>log(`Heartbeat: ready=${anyReady()} bots=${[...bots.values()].filter(b=>b.ready).length}/${bots.size} up=${Math.round(process.uptime()/60)}m accepted=${globalStats.accepted} delivered=${globalStats.delivered} today=${dailyGlobal.count}`),10*60_000)
-
-// Start bots
-initBots()
