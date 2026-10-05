@@ -124,8 +124,10 @@ const MAX_ATTEMPTS   = 5
 function normalize(input) {
   let n = String(input||'').replace(/\D/g,'')
   if (n.startsWith('00')) n = n.slice(2)
-  if (n.startsWith('0') && n.length===11) n = '92'+n.slice(1)
-  if (n.startsWith('920')) n = '92'+n.slice(3)
+  if (n.startsWith('920')) n = '92' + n.slice(3)
+  else if (n.startsWith('0') && n.length === 11) n = '92' + n.slice(1)
+  else if (n.startsWith('3') && n.length === 10) n = '92' + n
+  else if (n.length === 10 && !n.startsWith('92')) n = '92' + n
   return n
 }
 const allowedSet = () => new Set((CFG.allowedNumbers||[]).map(normalize))
@@ -448,12 +450,13 @@ function removeBot(botId) {
 
 function addBot(label, botNumber='') {
   const id='bot'+Date.now()
-  const cfg={ id, label:label||'New Bot', enabled:true, botNumber }
+  const cleanNumber = normalize(botNumber)
+  const cfg={ id, label:label||'New Bot', enabled:true, botNumber:cleanNumber }
   botsConfig.push(cfg)
   const state=initBotState(cfg)
   saveBotsConfig()
   startBot(id)
-  log(`Bot ${id} added: ${label}`)
+  log(`Bot ${id} added: "${label}" (${cleanNumber ? '+'+cleanNumber : 'no number'})`)
   return id
 }
 
@@ -841,8 +844,11 @@ app.post('/api/admin/settings',adminAuth,(req,res)=>{
 app.get('/api/admin/bots',adminAuth,(req,res)=>res.json({ok:true,bots:[...bots.values()].map(b=>({id:b.id,label:b.label,status:b.status,ready:b.ready,botNumber:b.botNumber}))}))
 
 app.post('/api/admin/bots/add',adminAuth,(req,res)=>{
-  const id=addBot(req.body?.label||'New Bot', req.body?.botNumber||'')
-  res.json({ok:true,id})
+  const label = String(req.body?.label||'New Bot').trim()
+  const rawNum = req.body?.botNumber||''
+  const botNumber = normalize(rawNum)
+  const id=addBot(label, botNumber)
+  res.json({ok:true,id,botNumber})
 })
 
 app.post('/api/admin/bots/:id/remove',adminAuth,(req,res)=>{
@@ -851,18 +857,40 @@ app.post('/api/admin/bots/:id/remove',adminAuth,(req,res)=>{
   res.json({ok:true})
 })
 
+app.post('/api/admin/bots/:id/update',adminAuth,(req,res)=>{
+  const bot=bots.get(req.params.id)
+  if (!bot) return res.status(404).json({ok:false,error:'Bot not found'})
+  if (req.body?.label) bot.label = String(req.body.label).trim()
+  if (req.body?.botNumber != null) bot.botNumber = normalize(req.body.botNumber)
+  const found = botsConfig.find(b=>b.id===bot.id)
+  if (found) {
+    found.label = bot.label
+    found.botNumber = bot.botNumber
+  }
+  saveBotsConfig()
+  res.json({ok:true,bot:{id:bot.id,label:bot.label,botNumber:bot.botNumber}})
+})
+
 app.post('/api/admin/bots/:id/new-code',adminAuth,async(req,res)=>{
   const bot=bots.get(req.params.id)
   if (!bot) return res.status(404).json({ok:false,error:'Bot not found'})
   const mode=req.body?.mode==='qr'?'qr':'pair'
-  bot.linkMode=mode; bot.autoLinkTries=0; bot.lastError=null
+  bot.linkMode=mode; bot.autoLinkTries=0; bot.lastError=null; bot.pairRequested=false; bot.pairCode=null; bot.lastQr=null
   // If bot number changed
-  if (req.body?.botNumber) { bot.botNumber=normalize(req.body.botNumber); saveBotsConfig() }
+  if (req.body?.botNumber) {
+    bot.botNumber=normalize(req.body.botNumber)
+  }
+  const found = botsConfig.find(b=>b.id===bot.id)
+  if (found) {
+    found.botNumber = bot.botNumber
+    if (req.body?.label) found.label = String(req.body.label).trim()
+  }
+  saveBotsConfig()
   // Wipe auth and restart
   try { fs.rmSync(path.join(AUTH_DIR,bot.id),{recursive:true,force:true}) } catch {}
-  log(`Bot ${bot.id}: generating new ${mode} code`)
+  log(`Bot ${bot.id}: generating new ${mode} code (phone: +${bot.botNumber})`)
   startBot(bot.id).catch(e=>recordError('startBot',e))
-  res.json({ok:true})
+  res.json({ok:true,botNumber:bot.botNumber})
 })
 
 app.post('/api/admin/bots/:id/unlink',adminAuth,async(req,res)=>{

@@ -22,8 +22,7 @@ A powerful, multi-account WhatsApp OTP gateway and management server with an adv
 ├── .gitignore         # Prevents secrets & session leaks
 └── public/
     ├── index.html     # User verification page
-    ├── admin.html     # Comprehensive Admin Dashboard
-    └── app.html       # Demo/test application
+    └── admin.html     # Comprehensive Admin Dashboard
 ```
 
 ## 🛠 Quick Start
