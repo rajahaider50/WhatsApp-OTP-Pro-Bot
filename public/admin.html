@@ -930,6 +930,41 @@ textarea.form-control {
   flex-shrink: 0;
 }
 
+/* BOT LINK SWITCHER TABS */
+.bot-link-switcher {
+  display: flex;
+  background: var(--bg-card);
+  border: 1px solid var(--bd-color);
+  border-radius: var(--radius-md);
+  padding: 3px;
+  gap: 4px;
+  margin: 10px 0;
+}
+.link-switch-btn {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 7px 10px;
+  border-radius: var(--radius-sm);
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--tx-muted);
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+.link-switch-btn:hover {
+  color: var(--tx-primary);
+}
+.link-switch-btn.active {
+  background: var(--primary);
+  color: #fff;
+  box-shadow: 0 2px 6px rgba(var(--primary-rgb), 0.3);
+}
+
 /* BOT ACTION BUTTONS */
 .bot-actions-row {
   display: flex;
@@ -2193,7 +2228,30 @@ function manualRefresh() {
 }
 
 // ==================== BOTS RENDERING ====================
+window.botLinkModes = window.botLinkModes || {};
+window.lastBotsData = [];
+
+function setBotLinkTab(botId, mode) {
+  window.botLinkModes[botId] = mode;
+  renderBots(window.lastBotsData || []);
+}
+
+async function requestQrMode(botId) {
+  toast('Switching bot to QR code scan mode...', 'info');
+  try {
+    const r = await api(`/api/admin/bots/${botId}/new-code`, 'POST', { mode: 'qr' });
+    if (r.ok) {
+      window.botLinkModes[botId] = 'qr';
+      toast('QR mode activated! Scan QR code with WhatsApp camera.', 'ok');
+      setTimeout(refreshData, 1000);
+    } else {
+      toast(r.error || 'Failed to switch to QR mode', 'err');
+    }
+  } catch(e) { toast('Error switching mode', 'err'); }
+}
+
 function renderBots(bots) {
+  window.lastBotsData = bots || [];
   const c = document.getElementById('botsContainer');
   const dashList = document.getElementById('dashBotsList');
 
@@ -2217,13 +2275,23 @@ function renderBots(bots) {
     const badgeClass = isOpen ? 'badge-open' : (isPairing ? 'badge-pairing' : 'badge-idle');
     const statusLabel = isOpen ? '🟢 Connected' : (isPairing ? '🟡 Waiting for Link' : '⚪ ' + b.status);
 
-    let pairCodeHtml = '';
-    if (!isOpen && b.pairCode) {
-      const codeClean = b.pairCode.replace(/\s+/g, '');
-      const part1 = codeClean.slice(0, 4);
-      const part2 = codeClean.slice(4);
-      pairCodeHtml = `
-        <div class="pairing-code-container">
+    let linkContentHtml = '';
+    if (!isOpen) {
+      let curMode = window.botLinkModes[b.id];
+      if (!curMode) {
+        if (b.lastError && (b.lastError.includes('429') || b.lastError.includes('rate-overlimit'))) curMode = 'qr';
+        else if (b.linkMode === 'qr') curMode = 'qr';
+        else if (b.pairCode) curMode = 'pair';
+        else if (b.qr) curMode = 'qr';
+        else curMode = 'pair';
+      }
+
+      let pairBody = '';
+      if (b.pairCode) {
+        const codeClean = b.pairCode.replace(/\s+/g, '');
+        const part1 = codeClean.slice(0, 4);
+        const part2 = codeClean.slice(4);
+        pairBody = `
           <div class="pairing-title"><svg class="icon icon-sm"><use href="#icon-key"/></svg> WhatsApp 8-Digit Pairing Code</div>
           <div class="code-boxes-wrap">
             ${part1.split('').map(char => `<div class="code-box">${char}</div>`).join('')}
@@ -2234,17 +2302,55 @@ function renderBots(bots) {
             <svg class="icon icon-sm"><use href="#icon-copy"/></svg> Copy Pairing Code
           </button>
           <div class="pairing-steps-box">
-            <div class="step-item"><span class="step-num">1</span> <span>Open WhatsApp on your phone & go to <strong>Settings > Linked Devices</strong></span></div>
+            <div class="step-item"><span class="step-num">1</span> <span>Open WhatsApp on phone & go to <strong>Settings > Linked Devices</strong></span></div>
             <div class="step-item"><span class="step-num">2</span> <span>Tap <strong>Link a device</strong> then <strong>"Link with phone number instead"</strong></span></div>
-            <div class="step-item"><span class="step-num">3</span> <span>Enter the 8-digit code shown above. Bot connects automatically!</span></div>
+            <div class="step-item"><span class="step-num">3</span> <span>Enter the 8-digit code above. Bot connects automatically!</span></div>
           </div>
+        `;
+      } else {
+        pairBody = `
+          <div style="text-align:center; padding:16px;">
+            <div style="font-size:12.5px; color:var(--warn); margin-bottom:8px;">⏳ Generating 8-digit code for ${b.botNumber ? '+'+b.botNumber : 'WhatsApp'}...</div>
+            <div style="font-size:11px; color:var(--tx-muted); margin-bottom:12px;">فون پر لمٹ ہونے کی صورت میں QR Code سے فوراً اسکین کریں</div>
+            <button class="btn btn-secondary btn-sm" onclick="setBotLinkTab('${b.id}', 'qr')">
+              <svg class="icon icon-sm"><use href="#icon-smartphone"/></svg> Switch to QR Code Scan
+            </button>
+          </div>
+        `;
+      }
+
+      let qrBody = '';
+      if (b.qr) {
+        qrBody = `
+          <div style="text-align:center; padding:12px;">
+            <img src="${b.qr}" style="width:160px; height:160px; border-radius:10px; background:#fff; padding:6px; box-shadow:0 4px 14px rgba(0,0,0,0.35);">
+            <div style="font-size:12px; font-weight:700; color:var(--tx-primary); margin-top:8px;">Scan with WhatsApp Camera</div>
+            <div style="font-size:11px; color:var(--tx-muted); margin-top:2px;">Settings &gt; Linked Devices &gt; Link a Device</div>
+            <div style="font-size:11px; color:var(--success); margin-top:5px; font-weight:600;">✨ بغیر کسی فون لمٹ کے فوراً لنک ہوتا ہے (100% Instant)</div>
+          </div>
+        `;
+      } else {
+        qrBody = `
+          <div style="text-align:center; padding:16px;">
+            <div style="font-size:12px; color:var(--tx-muted); margin-bottom:10px;">QR code initializing...</div>
+            <button class="btn btn-secondary btn-sm" onclick="requestQrMode('${b.id}')">
+              <svg class="icon icon-sm"><use href="#icon-power"/></svg> Generate QR Code
+            </button>
+          </div>
+        `;
+      }
+
+      linkContentHtml = `
+        <div class="bot-link-switcher">
+          <button class="link-switch-btn ${curMode === 'pair' ? 'active' : ''}" onclick="setBotLinkTab('${b.id}', 'pair')">
+            <svg class="icon icon-sm"><use href="#icon-key"/></svg> 8-Digit Pairing Code
+          </button>
+          <button class="link-switch-btn ${curMode === 'qr' ? 'active' : ''}" onclick="setBotLinkTab('${b.id}', 'qr')">
+            <svg class="icon icon-sm"><use href="#icon-smartphone"/></svg> Scan QR Code (Instant)
+          </button>
         </div>
-      `;
-    } else if (!isOpen && b.qr) {
-      pairCodeHtml = `
-        <div style="text-align:center; padding:12px; background:var(--bg-input); border-radius:var(--radius-md);">
-          <img src="${b.qr}" style="width:160px; height:160px; border-radius:8px; background:#fff; padding:6px;">
-          <div style="font-size:11px; color:var(--tx-muted); margin-top:6px;">Scan with WhatsApp > Linked Devices</div>
+        <div class="pairing-code-container">
+          ${curMode === 'pair' ? pairBody : qrBody}
         </div>
       `;
     }
@@ -2256,23 +2362,45 @@ function renderBots(bots) {
             <div class="bot-avatar-box"><svg class="icon icon-lg"><use href="#icon-whatsapp"/></svg></div>
             <div class="bot-name-group">
               <h3>${b.label}</h3>
-              <span class="bot-phone-pill">${b.botNumber ? '+'+b.botNumber : 'No number assigned'}</span>
+              <span class="bot-phone-pill">${b.botNumber ? '+'+b.botNumber : (b.linkMode === 'qr' ? '📷 QR Scan Mode' : 'No number assigned')}</span>
             </div>
           </div>
           <span class="bot-status-badge ${badgeClass}">${statusLabel}</span>
         </div>
 
-        ${b.lastError ? `<div style="padding:8px 12px; border-radius:var(--radius-sm); background:var(--err-light); color:var(--err); font-size:11.5px;">${b.lastError}</div>` : ''}
+        ${b.lastError ? `
+          <div style="padding:10px 12px; border-radius:var(--radius-sm); background:rgba(239, 68, 68, 0.12); border:1px solid rgba(239, 68, 68, 0.3); color:#fca5a5; font-size:11.5px; line-height:1.4;">
+            <strong>⚠️ Notice:</strong> ${b.lastError}
+            ${(b.lastError.includes('429') || b.lastError.includes('rate-overlimit')) ? `
+              <div style="margin-top:6px;">
+                <button class="btn btn-secondary btn-sm" onclick="setBotLinkTab('${b.id}', 'qr')" style="font-size:11px; padding:4px 8px;">
+                  <svg class="icon icon-sm"><use href="#icon-smartphone"/></svg> Scan QR Code Instead (Recommended)
+                </button>
+              </div>
+            ` : ''}
+          </div>
+        ` : ''}
 
-        ${pairCodeHtml}
+        ${linkContentHtml}
 
-        <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px; font-size:11.5px; color:var(--tx-muted);">
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px; font-size:11.5px; color:var(--tx-muted); margin:10px 0;">
           <div>Uptime: <strong style="color:var(--tx-primary);">${fmtUptime(b.uptime)}</strong></div>
           <div>Sent Today: <strong style="color:var(--tx-primary);">${b.dailySent?.count || 0}</strong></div>
         </div>
 
         <div class="bot-actions-row">
-          ${!isOpen ? `<button class="btn btn-primary btn-sm" onclick="showPairModal('${b.id}', '${b.label}', '${b.botNumber || ''}')"><svg class="icon icon-sm"><use href="#icon-key"/></svg> New Pairing Code</button>` : ''}
+          ${!isOpen ? `
+            <button class="btn btn-primary btn-sm" onclick="showPairModal('${b.id}', '${b.label}', '${b.botNumber || ''}')" title="Request new 8-digit code">
+              <svg class="icon icon-sm"><use href="#icon-key"/></svg> New Code
+            </button>
+            <button class="btn btn-secondary btn-sm" onclick="requestQrMode('${b.id}')" title="Switch to QR Code mode">
+              <svg class="icon icon-sm"><use href="#icon-smartphone"/></svg> QR Mode
+            </button>
+          ` : `
+            <button class="btn btn-primary btn-sm" onclick="openDirectChat('${b.id}')" title="Send WhatsApp Message">
+              <svg class="icon icon-sm"><use href="#icon-send"/></svg> Send Message
+            </button>
+          `}
           <button class="btn btn-secondary btn-sm" onclick="botRestart('${b.id}')" title="Restart Bot Socket"><svg class="icon icon-sm"><use href="#icon-power"/></svg> Restart</button>
           <button class="btn btn-secondary btn-sm" onclick="botUnlink('${b.id}')" title="Unlink WhatsApp"><svg class="icon icon-sm"><use href="#icon-unlink"/></svg> Unlink</button>
           <button class="btn btn-danger btn-sm" onclick="botRemove('${b.id}', '${b.label}')" title="Delete Bot"><svg class="icon icon-sm"><use href="#icon-trash"/></svg></button>
@@ -2296,7 +2424,13 @@ function copyPairCode(code, btn) {
   });
 }
 
-// ==================== ADD BOT MODAL (WITH LOCKED +92) ====================
+function openDirectChat(botId) {
+  const select = document.getElementById('chatBotSelect');
+  if (select) select.value = botId;
+  switchTab('chat');
+}
+
+// ==================== ADD BOT MODAL (WITH LOCKED +92 & QR OPTION) ====================
 function showAddBotModal() {
   showModal('Add WhatsApp Bot (+92 Pakistan)', `
     <div class="form-group">
@@ -2305,6 +2439,26 @@ function showAddBotModal() {
     </div>
 
     <div class="form-group">
+      <label class="form-label">Link Method</label>
+      <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:12px;">
+        <label id="lblMethodPair" style="padding:10px 12px; border:1.5px solid var(--primary); border-radius:var(--radius-md); background:var(--bg-input); cursor:pointer; display:flex; align-items:center; gap:8px;">
+          <input type="radio" name="addBotMethod" value="pair" checked onchange="onAddMethodChange(this.value)">
+          <div>
+            <div style="font-size:12.5px; font-weight:700; color:var(--tx-primary);">📱 8-Digit Code</div>
+            <div style="font-size:11px; color:var(--tx-muted);">Link with phone number</div>
+          </div>
+        </label>
+        <label id="lblMethodQr" style="padding:10px 12px; border:1px solid var(--bd-color); border-radius:var(--radius-md); background:var(--bg-input); cursor:pointer; display:flex; align-items:center; gap:8px;">
+          <input type="radio" name="addBotMethod" value="qr" onchange="onAddMethodChange(this.value)">
+          <div>
+            <div style="font-size:12.5px; font-weight:700; color:var(--tx-primary);">📷 Scan QR Code</div>
+            <div style="font-size:11px; color:var(--tx-muted);">Camera scan (No limits)</div>
+          </div>
+        </label>
+      </div>
+    </div>
+
+    <div id="addBotPhoneWrap" class="form-group">
       <label class="form-label">WhatsApp Phone Number</label>
       <div class="phone-input-group">
         <span class="phone-prefix-locked">
@@ -2320,24 +2474,41 @@ function showAddBotModal() {
     </div>
   `, [
     { text: 'Cancel', cls: 'btn-secondary', fn: 'hideModal' },
-    { text: '<svg class="icon"><use href="#icon-check"/></svg> Add & Generate Pairing Code', cls: 'btn-primary', fn: submitAddBot }
+    { text: '<svg class="icon"><use href="#icon-check"/></svg> Connect Bot', cls: 'btn-primary', fn: submitAddBot }
   ]);
   setTimeout(() => document.getElementById('addBotLabel')?.focus(), 150);
 }
 
+function onAddMethodChange(val) {
+  const pWrap = document.getElementById('addBotPhoneWrap');
+  const lPair = document.getElementById('lblMethodPair');
+  const lQr = document.getElementById('lblMethodQr');
+  if (val === 'qr') {
+    if (pWrap) pWrap.style.display = 'none';
+    if (lQr) { lQr.style.borderColor = 'var(--primary)'; lQr.style.borderWidth = '1.5px'; }
+    if (lPair) { lPair.style.borderColor = 'var(--bd-color)'; lPair.style.borderWidth = '1px'; }
+  } else {
+    if (pWrap) pWrap.style.display = 'block';
+    if (lPair) { lPair.style.borderColor = 'var(--primary)'; lPair.style.borderWidth = '1.5px'; }
+    if (lQr) { lQr.style.borderColor = 'var(--bd-color)'; lQr.style.borderWidth = '1px'; }
+  }
+}
+
 async function submitAddBot() {
   const label = document.getElementById('addBotLabel')?.value.trim() || 'WhatsApp Bot';
+  const method = document.querySelector('input[name="addBotMethod"]:checked')?.value || 'pair';
   const numDigits = document.getElementById('addBotNumber')?.value.trim() || '';
-  if (!numDigits || numDigits.length < 9) {
+  if (method === 'pair' && (!numDigits || numDigits.length < 9)) {
     return toast('Please enter a valid 10-digit mobile number starting with 3', 'err');
   }
-  const fullNumber = '92' + numDigits;
+  const fullNumber = numDigits ? '92' + numDigits : '';
   hideModal();
-  toast('Adding bot and generating pairing code...', 'info');
+  toast(`Adding ${label}...`, 'info');
   try {
-    const r = await api('/api/admin/bots/add', 'POST', { label, botNumber: fullNumber });
+    const r = await api('/api/admin/bots/add', 'POST', { label, botNumber: fullNumber, mode: method });
     if (r.ok) {
-      toast('Bot added! Requesting 8-digit code...', 'ok');
+      toast('Bot added! Requesting connection...', 'ok');
+      if (r.id) window.botLinkModes[r.id] = method;
       setTimeout(refreshData, 1200);
       switchTab('bots');
     } else {
@@ -2348,7 +2519,7 @@ async function submitAddBot() {
 
 // ==================== NEW PAIRING CODE MODAL ====================
 function showPairModal(botId, botLabel, currentNum) {
-  let initialDigits = currentNum.replace(/\D/g, '');
+  let initialDigits = (currentNum || '').replace(/\D/g, '');
   if (initialDigits.startsWith('92')) initialDigits = initialDigits.slice(2);
   else if (initialDigits.startsWith('0')) initialDigits = initialDigits.slice(1);
 
@@ -2372,7 +2543,7 @@ function showPairModal(botId, botLabel, currentNum) {
   `, [
     { text: 'Cancel', cls: 'btn-secondary', fn: 'hideModal' },
     { text: 'QR Code Instead', cls: 'btn-secondary', fn: () => submitNewCode(botId, 'qr') },
-    { text: '<svg class="icon"><use href="#icon-key"/></svg> Generate 8-Digit Pairing Code', cls: 'btn-primary', fn: () => submitNewCode(botId, 'pair') }
+    { text: '<svg class="icon"><use href="#icon-key"/></svg> Generate 8-Digit Code', cls: 'btn-primary', fn: () => submitNewCode(botId, 'pair') }
   ]);
 }
 
@@ -2387,10 +2558,11 @@ async function submitNewCode(botId, mode) {
   try {
     const r = await api(`/api/admin/bots/${botId}/new-code`, 'POST', { mode, botNumber: fullNumber });
     if (r.ok) {
-      toast('New pairing code requested! Check card.', 'ok');
+      window.botLinkModes[botId] = mode;
+      toast('New code requested! Check card.', 'ok');
       setTimeout(refreshData, 1500);
     } else {
-      toast(r.error || 'Failed to request code', 'err');
+      toast(r.error || 'Failed to request new code', 'err');
     }
   } catch(e) { toast('Error requesting code', 'err'); }
 }

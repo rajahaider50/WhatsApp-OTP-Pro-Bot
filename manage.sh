@@ -123,6 +123,15 @@ case "${1:-help}" in
     echo "Update complete!"
     bash "$0" url
     ;;
+  pull)
+    echo "Pulling latest code from GitHub..."
+    git pull origin main
+    echo "Installing any new dependencies..."
+    npm install --omit=dev --no-audit --no-fund
+    echo "Restarting server..."
+    pm2 restart "$PM2_APP" 2>/dev/null || pm2 start server.js --name "$PM2_APP"
+    echo "Server successfully updated with latest GitHub code!"
+    ;;
   health)
     curl -s "http://127.0.0.1:$PORT/health" | python3 -m json.tool 2>/dev/null || \
       curl -s "http://127.0.0.1:$PORT/health"
@@ -142,6 +151,7 @@ BASIC:
 
 CONTROL:
   restart              Restart the server
+  pull                 Pull latest code from GitHub and restart
   stop                 Stop server and tunnel
   start                Start server and tunnel
 

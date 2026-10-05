@@ -11,5 +11,6 @@ bots.json
 *.log
 install.log
 ADMIN-CODE.txt
+PAIRING-*.txt
 PAIRING-CODE.txt
 .env

@@ -384,6 +384,7 @@ bash manage.sh update file.zip # نئی zip سے update کریں
 
 | مسئلہ | حل |
 |-------|-----|
+| Couldn't link device (Check phone number) | اگر بار بار کوشش کرنے پر WhatsApp یہ میسج دے تو اس کا مطلب ہے اس نمبر پر 429 Rate-Limit لگ گئی ہے۔ فوراً "Scan QR Code" والے آپشن پر کلک کریں اور WhatsApp کیمرہ سے QR Code اسکین کریں — یہ بغیر کسی لمٹ کے 1 سیکنڈ میں لنک ہو جاتا ہے! |
 | Bot offline | Admin > Bots > Reconnect یا New Pairing Code |
 | Pairing code expire | Termux split-screen میں link کریں |
 | OTP نہیں آئی | Admin > Bots > Recent messages check کریں |
@@ -392,10 +393,30 @@ bash manage.sh update file.zip # نئی zip سے update کریں
 | Console نہیں آتا | ADMIN_PASSWORD set کریں یا ADMIN-CODE.txt دیکھیں |
 | Port busy | `pm2 stop all` پھر `bash manage.sh start` |
 
+### سرور پر نیا کوڈ اپڈیٹ کرنے کا طریقہ (Live Server Update)
+
+اگر آپ کا سرور `botkeep.cloud` یا VPS پر چل رہا ہے:
+```bash
+# 1. ریپوزٹری کے فولڈر میں جائیں
+cd /path/to/whatsapp-bot
+
+# 2. گٹ ہب سے لیٹسٹ کوڈ حاصل کریں
+git pull origin main
+
+# 3. پیکجز انسٹال کریں اور سرور ری سٹارٹ کریں
+npm install
+pm2 restart all
+```
+یا اگر `manage.sh` استعمال کر رہے ہیں:
+```bash
+bash manage.sh pull
+```
+
 ### Common Error Codes
 
 | Error | مطلب |
 |-------|-------|
+| `rate-overlimit (429)` | ایک ہی نمبر پر زیادہ بار کوڈ مانگا گیا ہے۔ 30 منٹ انتظار کریں یا QR Code اسکین کریں۔ |
 | `connectionLost (408)` | Normal - خود reconnect ہو جائے گا |
 | `loggedOut (401)` | WhatsApp نے session ختم کیا - نئی pairing code |
 | `connectionReplaced (440)` | دو جگہ چل رہا ہے - `pm2 stop all` |

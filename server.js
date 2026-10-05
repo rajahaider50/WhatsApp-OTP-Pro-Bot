@@ -322,7 +322,7 @@ try {
 }
 
 const makeWASocket = baileys.default?.default || baileys.default || baileys.makeWASocket
-const { useMultiFileAuthState, DisconnectReason, fetchLatestBaileysVersion, Browsers } = baileys
+const { useMultiFileAuthState, DisconnectReason, fetchLatestWaWebVersion, fetchLatestBaileysVersion, Browsers } = baileys
 const reasonName = c => Object.entries(DisconnectReason).find(([, v]) => v === c)?.[0] || String(c || 'unknown')
 
 function initBotState(cfg) {
@@ -337,8 +337,9 @@ function initBotState(cfg) {
     lastQr: null,
     pairCode: null,
     lastError: null,
-    linkMode: 'pair',
+    linkMode: cfg.linkMode || (cfg.botNumber ? 'pair' : 'qr'),
     pairRequested: false,
+    lastPairTime: 0,
     reconnectTimer: null,
     freshLink: false,
     openedAt: 0,
@@ -354,7 +355,7 @@ function initBotState(cfg) {
 function saveBotsConfig() {
   const arr = []
   for (const bot of bots.values()) {
-    arr.push({ id: bot.id, label: bot.label, enabled: bot.enabled, botNumber: normalize(bot.botNumber) })
+    arr.push({ id: bot.id, label: bot.label, enabled: bot.enabled, botNumber: normalize(bot.botNumber), linkMode: bot.linkMode })
   }
   try { fs.writeFileSync(BOTS_FILE, JSON.stringify(arr, null, 2)) } catch {}
 }
@@ -382,22 +383,28 @@ async function startBot(botId) {
   }
 
   // Fetch latest WhatsApp Web version to ensure compatibility
-  let version
+  let version = [2, 3000, 1049299156]
   try {
-    const vInfo = await fetchLatestBaileysVersion()
-    version = vInfo.version
-  } catch {}
+    const vInfo = await fetchLatestWaWebVersion()
+    if (vInfo?.version) version = vInfo.version
+  } catch {
+    try {
+      const bInfo = await fetchLatestBaileysVersion()
+      if (bInfo?.version) version = bInfo.version
+    } catch {}
+  }
 
   // Multi-file auth state without wrapping in caching signal stores during registration
   const { state, saveCreds } = await useMultiFileAuthState(botAuthDir)
 
-  // Use Browsers.ubuntu('Chrome') which is standard for WhatsApp Web companion registration
+  // Use Windows Chrome profile for stable companion pairing
   const s = makeWASocket({
     auth: state,
     version,
     logger: pino({ level: 'silent' }),
     printQRInTerminal: false,
-    browser: Browsers.ubuntu('Chrome'),
+    browser: Browsers.windows('Chrome'),
+    qrTimeout: 120_000,
     markOnlineOnConnect: false,
     syncFullHistory: false,
     generateHighQualityLinkPreview: false,
@@ -410,6 +417,20 @@ async function startBot(botId) {
   bot.sock   = s
   bot.status = 'starting'
   log(`Bot ${botId} ("${bot.label}"): initializing connection socket...`)
+
+  // Intercept WebSocket IQ error stanzas (e.g. 429 rate-overlimit on pairing)
+  try {
+    s.ws?.on?.('CB:iq,type:error', frame => {
+      const errTag = Array.isArray(frame?.content) ? frame.content[0] : null
+      const errCode = errTag?.attrs?.code
+      const errText = errTag?.attrs?.text
+      warn(`Bot ${botId} WhatsApp server IQ error: code=${errCode} text=${errText}`)
+      if (errCode === '429' || errText === 'rate-overlimit') {
+        bot.pairCode = null
+        bot.lastError = 'WhatsApp pairing rate limit (429: rate-overlimit). Too many pairing requests for this number. Scan the QR code with phone camera to connect immediately!'
+      }
+    })
+  } catch {}
 
   s.ev.on('creds.update', async () => {
     try { await saveCreds() } catch(err) { warn(`Bot ${botId} saveCreds:`, err.message) }
@@ -439,22 +460,39 @@ async function startBot(botId) {
       try { bot.lastQr = await qrcode.toDataURL(qr) } catch {}
       if (bot.linkMode === 'qr') qrcodeTerminal.generate(qr, { small: true })
 
-      // If in pairing mode and phone number is configured, request pairing code immediately
-      if (bot.linkMode === 'pair' && bot.botNumber && !state.creds.registered && !bot.pairRequested) {
+      // Handle pairing code with 2500ms delay & 60s cooldown to avoid rate-overlimit
+      const cleanNum = normalize(bot.botNumber)
+      const now = Date.now()
+      const canRequestPair = bot.linkMode === 'pair' && 
+                             cleanNum && 
+                             cleanNum.length >= 10 && 
+                             !state.creds.registered && 
+                             !bot.pairRequested &&
+                             (now - (bot.lastPairTime || 0) > 60000)
+
+      if (canRequestPair) {
         bot.pairRequested = true
-        try {
-          const cleanNum = normalize(bot.botNumber)
-          log(`Bot ${botId} ("${bot.label}"): Requesting WhatsApp pairing code for +${cleanNum}...`)
-          const code = await s.requestPairingCode(cleanNum)
-          bot.pairCode = code
-          log(`Bot ${botId} PAIRING CODE: ${code}`)
-          banner(`PAIRING CODE (${bot.label})`, code, 'WhatsApp > Linked devices > Link with phone number')
-          writeCodeFile(`PAIRING-${botId}.txt`, `PAIRING CODE: ${code}\nPhone: +${cleanNum}\nWhatsApp > Linked devices > Link with phone number`)
-        } catch(e) {
-          bot.pairRequested = false
-          bot.lastError = 'Pairing error: ' + (e.message || e)
-          recordError('pairing-' + botId, e)
-        }
+        bot.lastPairTime = now
+        setTimeout(async () => {
+          if (s !== bot.sock || state.creds.registered) return
+          try {
+            log(`Bot ${botId} ("${bot.label}"): Requesting WhatsApp pairing code for +${cleanNum}...`)
+            const code = await s.requestPairingCode(cleanNum)
+            if (s === bot.sock && !state.creds.registered) {
+              bot.pairCode = code
+              bot.lastError = null
+              log(`Bot ${botId} PAIRING CODE: ${code}`)
+              banner(`PAIRING CODE (${bot.label})`, code, 'WhatsApp > Linked devices > Link with phone number')
+              writeCodeFile(`PAIRING-${botId}.txt`, `PAIRING CODE: ${code}\nPhone: +${cleanNum}\nWhatsApp > Linked devices > Link with phone number`)
+            }
+          } catch(e) {
+            const emsg = e?.message || String(e)
+            bot.pairRequested = false
+            bot.lastError = 'Pairing error: ' + emsg
+            recordError('pairing-' + botId, e)
+            warn(`Bot ${botId} pairing error:`, emsg)
+          }
+        }, 2500)
       }
     }
 
@@ -500,8 +538,8 @@ async function startBot(botId) {
         bot.pairRequested = false
         try { fs.rmSync(botAuthDir, { recursive: true, force: true }) } catch {}
         bot.status = 'loggedout'
-        bot.lastError = `WhatsApp ended session (code ${code}). Link again from Admin.`
-        bot.reconnectTimer = setTimeout(() => startBot(botId), 4000)
+        bot.lastError = `WhatsApp ended session (logged out). Click "New Pairing Code" or "QR Code" to link again.`
+        // Do NOT reconnect automatically in a loop when logged out to avoid 429 rate limit spam
       } else if (code === DisconnectReason.connectionReplaced) {
         bot.status = 'closed'
         bot.lastError = 'Active on another client (connectionReplaced).'
@@ -509,7 +547,7 @@ async function startBot(botId) {
       } else {
         // Normal restart or reconnect required (e.g. 515 restartRequired after pairing)
         bot.status = 'closed'
-        const delay = code === DisconnectReason.restartRequired ? 1000 : 3000
+        const delay = code === DisconnectReason.restartRequired ? 1000 : 4000
         bot.reconnectTimer = setTimeout(() => startBot(botId), delay)
       }
     }
@@ -542,15 +580,15 @@ function removeBot(botId) {
   log(`Bot ${botId} removed`)
 }
 
-function addBot(label, botNumber = '') {
-  const id = 'bot' + Date.now()
+function addBot(label, botNumber = '', mode = 'pair') {
+  const id = 'bot_' + Date.now() + '_' + Math.random().toString(36).slice(2, 6)
   const cleanNumber = normalize(botNumber)
-  const cfg = { id, label: label || 'WhatsApp Bot', enabled: true, botNumber: cleanNumber }
+  const cfg = { id, label: label || 'WhatsApp Bot', enabled: true, botNumber: cleanNumber, linkMode: cleanNumber ? mode : 'qr' }
   botsConfig.push(cfg)
   initBotState(cfg)
   saveBotsConfig()
-  startBot(id)
-  log(`Bot ${id} added: "${label}" (${cleanNumber ? '+' + cleanNumber : 'no number'})`)
+  startBot(id).catch(e => recordError('startBot', e))
+  log(`Bot ${id} added: "${label}" (${cleanNumber ? '+' + cleanNumber : 'QR Mode'})`)
   return id
 }
 
@@ -877,6 +915,7 @@ app.get('/api/admin/state', adminAuth, (req, res) => {
       status: b.status,
       ready: b.ready,
       botNumber: b.botNumber,
+      linkMode: b.linkMode,
       qr: b.lastQr,
       pairCode: b.pairCode,
       lastError: b.lastError,
@@ -923,8 +962,9 @@ app.post('/api/admin/bots/add', adminAuth, (req, res) => {
   const label = String(req.body?.label || 'WhatsApp Bot').trim()
   const rawNum = req.body?.botNumber || ''
   const botNumber = normalize(rawNum)
-  const id = addBot(label, botNumber)
-  res.json({ ok: true, id, botNumber })
+  const mode = req.body?.mode === 'qr' ? 'qr' : 'pair'
+  const id = addBot(label, botNumber, mode)
+  res.json({ ok: true, id, botNumber, mode })
 })
 
 app.post('/api/admin/bots/:id/remove', adminAuth, (req, res) => {
@@ -941,25 +981,27 @@ app.post('/api/admin/bots/:id/new-code', adminAuth, async (req, res) => {
   bot.linkMode = mode
   bot.lastError = null
   bot.pairRequested = false
+  bot.lastPairTime = 0
   bot.pairCode = null
   bot.lastQr = null
 
-  if (req.body?.botNumber) {
+  if (req.body?.botNumber !== undefined) {
     bot.botNumber = normalize(req.body.botNumber)
   }
 
   const found = botsConfig.find(b => b.id === bot.id)
   if (found) {
     found.botNumber = bot.botNumber
+    found.linkMode = bot.linkMode
     if (req.body?.label) found.label = String(req.body.label).trim()
   }
   saveBotsConfig()
 
   // Wipe auth directory for fresh link
   try { fs.rmSync(path.join(AUTH_DIR, bot.id), { recursive: true, force: true }) } catch {}
-  log(`Bot ${bot.id}: Requesting new ${mode} code (Phone: +${bot.botNumber})`)
+  log(`Bot ${bot.id}: Requesting new ${mode} code (Phone: ${bot.botNumber ? '+' + bot.botNumber : 'QR Mode'})`)
   startBot(bot.id).catch(e => recordError('startBot', e))
-  res.json({ ok: true, botNumber: bot.botNumber })
+  res.json({ ok: true, botNumber: bot.botNumber, mode: bot.linkMode })
 })
 
 app.post('/api/admin/bots/:id/restart', adminAuth, (req, res) => {
@@ -977,12 +1019,14 @@ app.post('/api/admin/bots/:id/restart', adminAuth, (req, res) => {
 app.post('/api/admin/bots/:id/unlink', adminAuth, async (req, res) => {
   const bot = bots.get(req.params.id)
   if (!bot) return res.status(404).json({ ok: false, error: 'Bot not found' })
-  try { if (bot.sock) await Promise.race([bot.sock.logout(), sleep(4000)]) } catch {}
+  try { if (bot.sock) await Promise.race([bot.sock.logout(), sleep(3000)]) } catch {}
   try { fs.rmSync(path.join(AUTH_DIR, bot.id), { recursive: true, force: true }) } catch {}
   bot.pairRequested = false
+  bot.lastPairTime = 0
   bot.pairCode = null
   bot.lastQr = null
-  startBot(bot.id).catch(e => recordError('startBot', e))
+  bot.status = 'idle'
+  bot.ready = false
   res.json({ ok: true })
 })
 
