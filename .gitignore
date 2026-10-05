@@ -5,4 +5,7 @@ otps.json
 config.json
 .lock
 .public-url
+.public-url-fixed
 install.log
+ADMIN-CODE.txt
+PAIRING-CODE.txt

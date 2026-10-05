@@ -1,6 +1,96 @@
 # OTP Bot Server - Complete Guide
 
-English + Roman Urdu. Commands are for Termux (Android) unless a section says "VPS".
+English + Roman Urdu. Section 0 is for a bot-hosting panel + GitHub. The other sections use Termux (Android) commands unless they say "VPS".
+
+---
+
+## 0. Host it on a bot-hosting panel (botkeep.cloud) with GitHub - runs without your phone
+
+What I could see from your screenshots: the panel has **Overview / Console / Files / GitHub**, buttons **Stop / Restart / Redeploy / Kill**, Node.js 22, 2 GB RAM.
+I could not find botkeep.cloud's own documentation, so the exact place of some settings (startup command, variables, ports) may differ.
+Look in the panel's menu / Resources / Settings, or ask its support. The variable names below are the usual ones.
+
+In this mode there is no pm2, no cloudflared and no `install.sh` - the panel runs `npm start` and restarts the app by itself.
+(`install.sh` and `manage.sh` are only for Termux / VPS.)
+
+### Step 1 - GitHub repository
+1. Create a **private** repository, for example `whatsapp-otp-pro-bot`.
+2. Upload the project files **with the same folders**:
+
+        server.js
+        package.json
+        .gitignore
+        README.md
+        GUIDE.md
+        install.sh   (optional, not used on the panel)
+        manage.sh    (optional, not used on the panel)
+        public/index.html
+        public/admin.html
+
+   **Never upload:** `config.json`, `auth/`, `node_modules/`, `otps.json`, `ADMIN-CODE.txt`, `PAIRING-CODE.txt` (the `.gitignore` already blocks them).
+3. Phone tip: on GitHub choose **Add file -> Create new file**, type the name `public/admin.html` (the slash creates the folder), paste the content, **Commit**.
+   To replace a file open it, press the pencil icon, paste the new content, **Commit**.
+   Or edit/upload files directly in the panel's **Files** tab.
+
+### Step 2 - connect the repo to the panel
+Panel -> **GitHub** tab -> choose your repository and branch -> press **Redeploy**.
+After you change a file on GitHub, press **Redeploy** again.
+
+### Step 3 - startup command
+Set it to `npm start` (or `node server.js`). Node 22 is fine (Node 20+ is required).
+
+### Step 4 - variables (if the panel has an Environment / Variables section)
+| Variable | Meaning |
+|---|---|
+| `PORT` or `SERVER_PORT` | the port the panel gives your app (read automatically; default 3000) |
+| `PUBLIC_URL` | the public https link of your app (shown in Admin -> Links) |
+| `BOT_NUMBER` | bot number, e.g. `03495031007` |
+| `ADMIN_PASSWORD` | optional, 8+ characters: lets you log in to Admin even if the console is not working |
+| `TRUST_PROXY` | set `1` when the panel puts a reverse proxy in front (so every visitor gets their own IP for the rate limits) |
+| `DATA_DIR` | folder of a persistent volume, if the panel offers one (keeps the WhatsApp link across redeploys) |
+| `CODE_FILES` | `0` to stop saving codes to files (default: on) |
+
+### Step 5 - make the pages reachable from the internet
+The signup page and the admin panel need an HTTP port that is reachable from outside.
+If the panel has a **Network / Ports / Domains** section, expose the port your app listens on and use the address it gives you
+(set that address as `PUBLIC_URL`). If the panel can only run a bot without web access, the pages cannot be opened from outside;
+WhatsApp linking through the Console still works.
+
+### Step 6 - what the Console should print
+    OTP Bot Server v1.3.0
+    12:00:01 Listening on 0.0.0.0:PORT | Node v22... | mode: hosting panel / standalone
+    12:00:01 Data folder: ...
+    12:00:01 Public link: https://...
+    12:00:01 Admin login: open /admin.html and press "Request code". The code is printed in THIS console and saved in ADMIN-CODE.txt.
+    12:00:04 PAIRING CODE: ABCD1234         <- type this in WhatsApp (see below)
+    12:00:30 Connected as 92349...
+    12:00:50 Ready
+    12:10:01 Heartbeat: status=open ready=true ...   <- every 10 minutes
+
+When you press **Request code** on the Admin page, a box with the 6-digit admin code appears in the same Console.
+Colors are off by default so the panel console stays readable.
+
+### Step 7 - link WhatsApp (first time)
+1. Open WhatsApp **first** on the phone that has the bot number: Linked devices -> Link a device -> **Link with phone number instead**.
+2. In the panel press **Restart**, wait for `PAIRING CODE: ...` in the Console and type it in WhatsApp quickly (codes expire fast).
+3. After **Ready** the Admin panel shows **Online**.
+If linking fails 5 times the app **pauses** (to protect the number from WhatsApp limits). Use Admin -> **New pairing code** or press **Restart**.
+
+### If the Console says "Console connection unavailable. Reconnecting..."
+That message comes from the panel's own console connection, not from this app (the app can be running fine - the Overview tab says Running).
+Try: wait 1-2 minutes after Restart, reload the page, switch Wi-Fi/mobile data, turn VPN/data saver off, try the browser's desktop mode.
+If it stays broken, tell the panel support. Meanwhile you do not need the console:
+- open the panel **Files** tab: `ADMIN-CODE.txt` and `PAIRING-CODE.txt` appear there when a code is created (they are deleted after use), or
+- set `ADMIN_PASSWORD` and log in to Admin with it.
+
+### Keep the WhatsApp link across Redeploys
+After a **Redeploy** the Admin should still say **Online** without a new pairing code.
+If it asks to link again, the panel wipes files on redeploy: set `DATA_DIR` to a persistent volume path, or use **Restart** (not Redeploy) for small changes, and keep a copy of `auth/`.
+
+### Honest warnings
+- Hosting-panel servers use datacenter IPs. WhatsApp can be stricter with linking/sending from datacenter IPs than from a phone. If linking keeps failing or the number gets restricted, run the bot from Termux at home instead. I cannot promise either way.
+- `npm install` needs `git` inside the container for one of the WhatsApp libraries. If the panel's build log shows a git error, send it to me.
+- Free plans may have limits or sleep rules - check the panel's terms.
 
 ---
 
@@ -66,7 +156,8 @@ The server runs under **pm2**, so it keeps running after you close the Termux wi
 
 4. Type the 6 digits in the admin page and press **Log in**. The session lasts 2 hours.
 
-*Code sirf terminal mein aata hai, is liye koi bahar wala admin mein nahi ja sakta.*
+*Code sirf server console mein aata hai (hosting panel ka Console tab / Termux), is liye koi bahar wala admin mein nahi ja sakta.*
+On a hosting panel the same code is also saved in `ADMIN-CODE.txt` (Files tab) and you can set `ADMIN_PASSWORD` as a backup login.
 After 5 wrong attempts from one IP the admin login is blocked for 10 minutes.
 
 ---

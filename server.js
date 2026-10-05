@@ -10,21 +10,32 @@ import { fileURLToPath } from 'url'
 import * as baileys from '@whiskeysockets/baileys'
 
 const APP_NAME = 'OTP Bot Server'
-const VERSION = '1.2.0'
+const VERSION = '1.3.0'
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
-const AUTH_DIR = path.join(__dirname, 'auth')
-const BACKUP_DIR = path.join(__dirname, 'auth_backups')
-const DATA_FILE = path.join(__dirname, 'otps.json')
-const LOCK_FILE = path.join(__dirname, '.lock')
-const CONFIG_FILE = path.join(__dirname, 'config.json')
+// Everything that must survive restarts lives in DATA_DIR (default: the app folder).
+// On a hosting panel with a persistent volume, set the DATA_DIR environment variable to that path.
+const DATA_DIR = process.env.DATA_DIR ? path.resolve(process.env.DATA_DIR) : __dirname
+try { fs.mkdirSync(DATA_DIR, { recursive: true }) } catch {}
+const AUTH_DIR = path.join(DATA_DIR, 'auth')
+const BACKUP_DIR = path.join(DATA_DIR, 'auth_backups')
+const DATA_FILE = path.join(DATA_DIR, 'otps.json')
+const LOCK_FILE = path.join(DATA_DIR, '.lock')
+const CONFIG_FILE = path.join(DATA_DIR, 'config.json')
+const UNDER_PM2 = process.env.pm_id !== undefined   // true on Termux/VPS (pm2), false on a hosting panel
+const CODE_FILES = process.env.CODE_FILES !== '0'   // also save admin/pairing codes to a file (fallback if the console is flaky)
 const URL_FILE = path.join(__dirname, '.public-url')
 const FIXED_URL_FILE = path.join(__dirname, '.public-url-fixed')
 const TUNNEL_APP = 'otp-bot-tunnel'
 
-const col = {
-  g: s => `\x1b[32m${s}\x1b[0m`, r: s => `\x1b[31m${s}\x1b[0m`,
-  y: s => `\x1b[33m${s}\x1b[0m`, c: s => `\x1b[36m${s}\x1b[0m`, b: s => `\x1b[1m${s}\x1b[0m`
-}
+// Colors only on a real terminal (hosting-panel consoles often show raw escape codes). FORCE_COLOR=1 forces them.
+const useColor = (process.stdout.isTTY || process.env.FORCE_COLOR === '1') && !process.env.NO_COLOR
+const paint = code => s => useColor ? `\x1b[${code}m${s}\x1b[0m` : String(s)
+const col = { g: paint(32), r: paint(31), y: paint(33), c: paint(36), b: paint(1) }
+
+// Code files: shown in the panel's Files tab when the live console is not available
+const writeCodeFile = (name, text) => { if (CODE_FILES) { try { fs.writeFileSync(path.join(DATA_DIR, name), text + '\n') } catch {} } }
+const removeCodeFile = name => { try { fs.unlinkSync(path.join(DATA_DIR, name)) } catch {} }
+removeCodeFile('ADMIN-CODE.txt'); removeCodeFile('PAIRING-CODE.txt')
 
 // Silence libsignal session dumps (they also print key material)
 const NOISE = ['Closing session', 'Opening session', 'Removing old closed session', 'Migrating session', 'Session already closed', 'Session already open']
@@ -78,7 +89,7 @@ process.on('uncaughtException', e => recordError('uncaughtException', e))
 // ======================= Config =======================
 const DEFAULTS = {
   port: 3000,
-  botNumber: '923495031007',
+  botNumber: String(process.env.BOT_NUMBER || '923495031007'),
   signupEnabled: true,
   restrictToAllowed: false,
   allowedNumbers: [],
@@ -96,7 +107,11 @@ try { CFG = { ...DEFAULTS, ...JSON.parse(fs.readFileSync(CONFIG_FILE, 'utf8')) }
 if (/[\u0600-\u06FF]/.test(String(CFG.message))) CFG.message = DEFAULTS.message
 const saveConfig = () => { try { fs.writeFileSync(CONFIG_FILE, JSON.stringify(CFG, null, 2)) } catch (e) { recordError('config', e) } }
 saveConfig()
-const PORT = process.env.PORT || CFG.port
+const PORT = Number(process.env.SERVER_PORT || process.env.PORT || CFG.port) || 3000
+const HOST = process.env.HOST || '0.0.0.0'
+const ADMIN_PASSWORD = String(process.env.ADMIN_PASSWORD || '')   // optional extra admin login (min 8 chars)
+const passwordEnabled = ADMIN_PASSWORD.length >= 8
+const MAX_AUTO_LINK = Number(process.env.MAX_AUTO_LINK_TRIES) || 5
 const MAX_ATTEMPTS = 5
 
 function normalize(input) {
@@ -107,17 +122,21 @@ function normalize(input) {
   return n
 }
 const allowedSet = () => new Set((CFG.allowedNumbers || []).map(normalize))
-const botDigits = () => String(CFG.botNumber || '').replace(/\D/g, '')
+const botDigits = () => normalize(CFG.botNumber)
 const mask = n => n.slice(0, 5) + '*****' + n.slice(-2)
 
 // ======================= Single instance lock =======================
+function looksLikeOurServer(pid) {
+  try { return /server\.js|ProcessContainerFork/.test(fs.readFileSync(`/proc/${pid}/cmdline`, 'utf8')) }
+  catch { return false } // cannot verify (container / other OS): treat the lock as stale
+}
 try {
   if (fs.existsSync(LOCK_FILE)) {
     const pid = Number(fs.readFileSync(LOCK_FILE, 'utf8'))
     if (pid && pid !== process.pid) {
       let alive = true
       try { process.kill(pid, 0) } catch { alive = false }
-      if (alive) {
+      if (alive && looksLikeOurServer(pid)) {
         console.error(col.r(`ERROR: another instance (PID ${pid}) is running. Stop it with: pm2 stop all ; pkill -f server.js   (if it still fails: rm .lock)`))
         process.exit(1)
       }
@@ -125,7 +144,7 @@ try {
   }
   fs.writeFileSync(LOCK_FILE, String(process.pid))
 } catch {}
-process.on('exit', () => { try { fs.unlinkSync(LOCK_FILE) } catch {} })
+process.on('exit', () => { try { fs.unlinkSync(LOCK_FILE) } catch {}; removeCodeFile('ADMIN-CODE.txt') })
 for (const s of ['SIGINT', 'SIGTERM']) process.on(s, () => process.exit(0))
 
 // ======================= Session safety =======================
@@ -166,6 +185,7 @@ let reconnectTimer = null
 let freshLink = false
 let openedAt = 0
 let flaps = 0, lastCloseAt = 0
+let autoLinkTries = 0
 
 // Routine drops (normal on phone networks) are counted, not reported as errors
 const ROUTINE = new Set([DisconnectReason.connectionLost, DisconnectReason.connectionClosed, DisconnectReason.timedOut, DisconnectReason.restartRequired].filter(x => x !== undefined))
@@ -229,6 +249,17 @@ async function startSock() {
   restoreCredsIfBroken()
   if (!isLinked()) wipeAuth() // never reuse a half-finished pairing (avoids 401)
   const linkedAtStart = isLinked()
+  if (linkedAtStart) autoLinkTries = 0
+  else {
+    // Do not request pairing codes forever (WhatsApp rate-limits repeated link attempts)
+    autoLinkTries++
+    if (autoLinkTries > MAX_AUTO_LINK) {
+      sock = null; ready = false; status = 'idle'; lastQr = null; pairCode = null
+      lastError = `Linking paused after ${MAX_AUTO_LINK} tries (protects the number from WhatsApp limits). Open Admin and press "New pairing code", or restart the app.`
+      warn(lastError)
+      return
+    }
+  }
   const { state, saveCreds } = await useMultiFileAuthState(AUTH_DIR)
   let version
   try { ({ version } = await fetchLatestBaileysVersion()) } catch {}
@@ -272,6 +303,7 @@ async function startSock() {
         try {
           pairCode = await s.requestPairingCode(botDigits())
           log('PAIRING CODE:', pairCode)
+          writeCodeFile('PAIRING-CODE.txt', `PAIRING CODE: ${pairCode}\nWhatsApp > Linked devices > Link a device > Link with phone number instead`)
           banner('PAIRING CODE', pairCode, 'WhatsApp > Linked devices > Link with phone number')
         } catch (e) { pairRequested = false; recordError('pairing', e) }
       }
@@ -279,6 +311,7 @@ async function startSock() {
 
     if (connection === 'open') {
       status = 'open'; lastQr = null; pairCode = null; lastError = null
+      removeCodeFile('PAIRING-CODE.txt')
       openedAt = Date.now()
       const wait = freshLink ? CFG.warmupSec : 2
       log(`Connected as ${s.user?.id || '?'} - ready in ${wait}s${freshLink ? ' (new link, warm-up)' : ''}`)
@@ -324,6 +357,8 @@ async function startSock() {
 // Unlink the current session (or wipe a half-finished one) and start a fresh link
 async function unlinkAndRestart() {
   ready = false
+  autoLinkTries = 0
+  removeCodeFile('PAIRING-CODE.txt')
   const old = sock
   if (old) {
     try { old.ev.removeAllListeners() } catch {}
@@ -418,6 +453,8 @@ function adminAuth(req, res, next) {
 
 // ======================= Public link (tunnel) helpers =======================
 function currentTunnelUrl() {
+  const envUrl = String(process.env.PUBLIC_URL || '').trim().replace(/\/+$/, '')
+  if (envUrl) return envUrl
   try { const f = fs.readFileSync(FIXED_URL_FILE, 'utf8').trim(); if (f) return f } catch {}
   const home = process.env.HOME || ''
   for (const f of [TUNNEL_APP + '-error.log', TUNNEL_APP + '-out.log']) {
@@ -435,10 +472,12 @@ async function internetOk() {
   try { const r = await fetch('https://www.cloudflare.com/cdn-cgi/trace', { signal: AbortSignal.timeout(8000) }); return r.ok } catch { return false }
 }
 function restartTunnel(why) {
+  if (!UNDER_PM2) { warn('Tunnel restart works only under pm2 (Termux/VPS). On a hosting panel there is no tunnel to restart.'); return false }
   execFile('pm2', ['restart', TUNNEL_APP], { timeout: 20000 }, (e, so, se) => {
     if (e) recordError('tunnel restart', new Error(String(se || e.message).slice(0, 200)), 'pm2 restart ' + TUNNEL_APP)
     else log(`Public tunnel restarted (${why}). A quick-tunnel link changes after restart - see Admin > Links.`)
   })
+  return true
 }
 async function checkPublic() {
   const url = currentTunnelUrl()
@@ -452,7 +491,7 @@ async function checkPublic() {
   publicFails++
   warn(`Public link check failed (${publicFails}/5): ${url}`)
   // Restart the tunnel only when the phone itself has internet but the public link stays dead
-  if (CFG.tunnelWatchdog && publicFails >= 5 && await internetOk()) { publicFails = 0; restartTunnel('watchdog') }
+  if (CFG.tunnelWatchdog && UNDER_PM2 && publicFails >= 5 && await internetOk()) { publicFails = 0; restartTunnel('watchdog') }
 }
 setTimeout(checkPublic, 20_000)
 setInterval(checkPublic, 60_000)
@@ -460,7 +499,9 @@ setInterval(checkPublic, 60_000)
 // ======================= Web server =======================
 const app = express()
 app.disable('x-powered-by')
-app.set('trust proxy', 'loopback')
+// Behind a hosting panel's reverse proxy set TRUST_PROXY=1 so each visitor gets their own IP for the rate limits
+const trustProxy = (() => { const v = process.env.TRUST_PROXY; if (!v) return 'loopback'; if (v === 'true') return true; if (v === 'false') return false; return /^\d+$/.test(v) ? Number(v) : v })()
+app.set('trust proxy', trustProxy)
 app.use(express.json({ limit: '10kb' }))
 app.use((req, res, next) => {
   res.set({ 'X-Content-Type-Options': 'nosniff', 'Referrer-Policy': 'no-referrer' })
@@ -471,7 +512,7 @@ app.use(express.static(path.join(__dirname, 'public')))
 app.get('/admin', (req, res) => res.redirect('/admin.html'))
 
 app.get('/health', (req, res) => res.json({ ok: true, name: APP_NAME, version: VERSION, status, ready, uptime: Math.round(process.uptime()) }))
-app.get('/api/status', (req, res) => res.json({ name: APP_NAME, status, ready, signupEnabled: CFG.signupEnabled }))
+app.get('/api/status', (req, res) => res.json({ name: APP_NAME, status, ready, signupEnabled: CFG.signupEnabled, adminPassword: passwordEnabled }))
 
 // Browser errors (signup/admin page problems show up in the error console)
 const clientErrHits = new Map()
@@ -569,21 +610,25 @@ app.post('/api/admin/request-code', (req, res) => {
   lastCodeReq = Date.now()
   if (!adminCode || adminCode.expires < Date.now()) adminCode = { code: String(crypto.randomInt(100000, 1000000)), expires: Date.now() + 5 * 60_000 }
   banner('ADMIN VERIFICATION CODE', adminCode.code, 'Valid for 5 minutes')
+  writeCodeFile('ADMIN-CODE.txt', `ADMIN VERIFICATION CODE: ${adminCode.code}\nValid until ${new Date(adminCode.expires).toISOString()}`)
+  setTimeout(() => { if (!adminCode || adminCode.expires < Date.now()) removeCodeFile('ADMIN-CODE.txt') }, 5 * 60_000 + 1000)
   push('warn', 'Admin verification code printed in the terminal')
   res.json({ ok: true })
 })
 
+const safeEq = (x, y) => { const a = Buffer.from(String(x)), b = Buffer.from(String(y)); return a.length === b.length && crypto.timingSafeEqual(a, b) }
 app.post('/api/admin/login', (req, res) => {
   if (loginBlocked(req.ip)) return res.status(429).json({ ok: false, error: 'Too many wrong attempts. Try again in 10 minutes.' })
-  if (!adminCode || adminCode.expires < Date.now()) return res.status(400).json({ ok: false, error: 'Request a code first (no valid code, or it expired).' })
+  const codeValid = adminCode && adminCode.expires >= Date.now()
+  if (!codeValid && !passwordEnabled) return res.status(400).json({ ok: false, error: 'Request a code first (no valid code, or it expired).' })
   const given = String(req.body.code || '').trim()
-  const a = Buffer.from(given), b = Buffer.from(adminCode.code)
-  if (a.length !== b.length || !crypto.timingSafeEqual(a, b)) {
+  const ok = (codeValid && safeEq(given, adminCode.code)) || (passwordEnabled && safeEq(given, ADMIN_PASSWORD))
+  if (!ok) {
     loginFails.push({ ip: req.ip, t: Date.now() })
     warn('Admin login: wrong code')
     return res.status(400).json({ ok: false, error: 'Wrong code.' })
   }
-  adminCode = null
+  if (codeValid && safeEq(given, adminCode.code)) { adminCode = null; removeCodeFile('ADMIN-CODE.txt') }
   const token = crypto.randomBytes(24).toString('hex')
   sessions.set(token, Date.now() + 2 * 3600_000)
   log('Admin login OK')
@@ -601,6 +646,7 @@ app.get('/api/admin/state', adminAuth, (req, res) => {
     botNumber: botDigits(), me: sock?.user?.id || null,
     qr: lastQr, pairCode, lastError: lastError || deliveryWarn,
     uptime: Math.round(process.uptime()), port: PORT, stats,
+    underPm2: UNDER_PM2, customDataDir: DATA_DIR !== __dirname, passwordEnabled,
     reconnects24h: reconnects24h(), connUptime: openedAt ? Math.round((Date.now() - openedAt) / 1000) : 0,
     publicUrl: currentTunnelUrl(), publicOk, publicCheckedAt, fixedUrl: fs.existsSync(FIXED_URL_FILE),
     settings: {
@@ -647,7 +693,8 @@ app.post('/api/admin/unlink', adminAuth, async (req, res) => {
 
 app.post('/api/admin/restart', adminAuth, (req, res) => {
   log('Manual reconnect')
-  try { sock?.end(new Error('manual restart')) } catch {}
+  autoLinkTries = 0
+  if (sock) { try { sock.end(new Error('manual restart')) } catch {} } else scheduleReconnect(200)
   res.json({ ok: true })
 })
 
@@ -656,7 +703,7 @@ app.post('/api/admin/check-public', adminAuth, async (req, res) => {
   res.json({ ok: true, publicOk, publicUrl: currentTunnelUrl() })
 })
 app.post('/api/admin/restart-tunnel', adminAuth, (req, res) => {
-  restartTunnel('admin')
+  if (!restartTunnel('admin')) return res.status(400).json({ ok: false, error: 'Not running under pm2 (hosting-panel mode): there is no tunnel to restart.' })
   res.json({ ok: true })
 })
 
@@ -694,13 +741,17 @@ app.use((e, req, res, next) => {
   res.status(500).json({ ok: false, error: 'Server error.' })
 })
 
-const server = app.listen(PORT, () => {
+const server = app.listen(PORT, HOST, () => {
   console.log('')
   console.log(col.g(col.b(`  ${APP_NAME} v${VERSION}`)))
-  log(`Local:  http://localhost:${PORT}`)
-  log(`Admin:  http://localhost:${PORT}/admin.html  (the login code is printed in this terminal)`)
+  log(`Listening on ${HOST}:${PORT} | Node ${process.version} | mode: ${UNDER_PM2 ? 'pm2 (Termux/VPS)' : 'hosting panel / standalone'}`)
+  log(`Local:  http://localhost:${PORT}   Admin: /admin.html`)
+  log(`Data folder: ${DATA_DIR}`)
+  log(`Public link: ${currentTunnelUrl() || '(not set - on a hosting panel set the PUBLIC_URL variable, see GUIDE.md)'}`)
+  log(`Admin login: open /admin.html and press "Request code". The code is printed in THIS console${CODE_FILES ? ' and saved in ADMIN-CODE.txt' : ''}${passwordEnabled ? ' (ADMIN_PASSWORD also works)' : ''}.`)
   log(`Bot number: ${mask(botDigits())}`)
 })
+setInterval(() => log(`Heartbeat: status=${status} ready=${ready} server-up=${Math.round(process.uptime() / 60)}m connection-up=${openedAt ? Math.round((Date.now() - openedAt) / 60000) : 0}m reconnects24h=${reconnects24h()} accepted=${stats.accepted} delivered=${stats.delivered}`), 10 * 60_000)
 server.on('error', e => {
   recordError('http server', e)
   console.error(col.r(`ERROR: server could not start: ${e.message}`))

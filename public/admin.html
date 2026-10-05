@@ -52,13 +52,14 @@
     <h1>Admin Panel</h1>
     <p class="mut">
       1) Press <b>Request code</b>.<br>
-      2) A 6-digit admin code is printed in the Termux terminal. Run <code>bash manage.sh code</code> to see it.<br>
+      2) A 6-digit admin code is printed in the server console: the hosting panel's <b>Console</b> tab, or Termux (<code>bash manage.sh code</code>).
+         It is also saved in the file <code>ADMIN-CODE.txt</code> (panel <b>Files</b> tab) in case the console is not available.<br>
       3) Type that code below and log in.<br>
-      <i>Code terminal (Termux) mein aayega, yahan likh kar login karein.</i>
+      <i>Code server console mein aayega (ya ADMIN-CODE.txt file mein), yahan likh kar login karein.</i>
     </p>
     <button id="reqCode" class="p">Request code</button>
-    <label>Admin verification code</label>
-    <input id="code" type="tel" inputmode="numeric" maxlength="6" placeholder="6-digit code">
+    <label>Admin verification code (or the admin password, if one is set)</label>
+    <input id="code" type="password" autocomplete="one-time-code" placeholder="6-digit code">
     <div style="margin-top:10px"><button id="doLogin" class="p">Log in</button></div>
     <p id="loginMsg" class="mut"></p>
   </div>
@@ -187,7 +188,7 @@ function showDash(){ $('loginView').classList.add('hide'); $('dash').classList.r
 
 $('reqCode').onclick = async () => {
   const r = await api('/api/admin/request-code','POST')
-  $('loginMsg').textContent = r.ok ? 'Code printed in the terminal. Run: bash manage.sh code' : r.error
+  $('loginMsg').textContent = r.ok ? 'Code printed in the server console (panel Console tab / Termux) and saved in ADMIN-CODE.txt.' : r.error
 }
 $('doLogin').onclick = async () => {
   const r = await api('/api/admin/login','POST',{code:$('code').value})
@@ -196,7 +197,7 @@ $('doLogin').onclick = async () => {
 $('logoutBtn').onclick = async () => { try{ await api('/api/admin/logout-session','POST') }catch(e){}; token=''; try{sessionStorage.removeItem('otpbot_tok')}catch(e){}; showLogin() }
 
 function fmtDur(s){ const h=Math.floor(s/3600), m=Math.floor(s%3600/60); return h ? h+'h '+m+'m' : m+'m '+(s%60)+'s' }
-const NAMES = {starting:['Starting','warn'],qr:['Waiting for link','warn'],open:['Online','ok'],closed:['Reconnecting','warn'],loggedout:['Logged out','bad']}
+const NAMES = {starting:['Starting','warn'],qr:['Waiting for link','warn'],open:['Online','ok'],closed:['Reconnecting','warn'],loggedout:['Logged out','bad'],idle:['Linking paused','warn']}
 
 function render(s){
   lastState = s
@@ -216,15 +217,17 @@ function render(s){
 
   const local = 'http://localhost:'+s.port
   $('uLocal').textContent = local
-  $('uPublic').textContent = s.publicUrl || '(no public link yet - run: bash manage.sh tunnel)'
+  $('uPublic').textContent = s.publicUrl || (s.underPm2 ? '(no public link yet - run: bash manage.sh tunnel)' : '(not set - add the PUBLIC_URL variable in your hosting panel)')
   $('uAdmin').textContent = (s.publicUrl || local) + '/admin.html'
   const pp = $('pubPill')
   if (!s.publicUrl){ pp.textContent='none'; pp.className='pill' }
   else if (s.publicOk === true){ pp.textContent='reachable'; pp.className='pill ok' }
   else if (s.publicOk === false){ pp.textContent='NOT reachable'; pp.className='pill bad' }
   else { pp.textContent='checking'; pp.className='pill' }
-  $('pubHelp').textContent = s.fixedUrl ? 'Fixed link in use (it does not change).' :
-    'Quick-tunnel links change after every tunnel restart and can be blocked by some ISPs/countries. For a permanent link see GUIDE.md (fixed link / VPS + domain).'
+  $('restartTun').classList.toggle('hide', !s.underPm2)
+  $('pubHelp').textContent = !s.underPm2 ? 'Hosting-panel mode. Set the PUBLIC_URL variable to your panel link. This check runs from inside the server and can fail on hosts that block self-requests.' :
+    (s.fixedUrl ? 'Fixed link in use (it does not change).' :
+    'Quick-tunnel links change after every tunnel restart and can be blocked by some ISPs/countries. For a permanent link see GUIDE.md (fixed link / VPS + domain).')
 
   if (!settingsLoaded){
     const st=s.settings
