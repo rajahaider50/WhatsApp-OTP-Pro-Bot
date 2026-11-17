@@ -19,7 +19,7 @@ const __filename = fileURLToPath(import.meta.url)
 const __dirname  = path.dirname(__filename)
 
 const APP_NAME = 'OTP Bot Pro'
-const VERSION  = '2.0.0'
+const VERSION  = '2.1.0'
 
 // ======================= ANSI Colors =======================
 const col = {
@@ -125,7 +125,6 @@ const DEFAULTS = {
   maxPerHour: 40,
   ipLimitPerHour: 15,
   dailyLimit: 1000,
-  tunnelWatchdog: true,
   message: DEFAULT_MSG
 }
 
@@ -154,7 +153,6 @@ function normalize(input) {
   if (n.startsWith('920')) n = '92' + n.slice(3)
   else if (n.startsWith('0') && n.length === 11) n = '92' + n.slice(1)
   else if (n.startsWith('3') && n.length === 10) n = '92' + n
-  else if (n.length === 10 && !n.startsWith('92')) n = '92' + n
   return n
 }
 
@@ -182,7 +180,7 @@ process.on('SIGTERM', () => { cleanLock(); process.exit(0) })
 
 // ======================= Tunnel Detection =======================
 const currentTunnelUrl = () => {
-  for (const f of [FIXED_URL, TUNNEL_URL]) {
+  for (const f of [FIXED_URL, path.join(__dirname, '.public-url-fixed'), TUNNEL_URL, path.join(__dirname, '.public-url')]) {
     try { const u = fs.readFileSync(f, 'utf8').trim(); if (u && /^https?:\/\//.test(u)) return u } catch {}
   }
   if (process.env.PUBLIC_URL) return process.env.PUBLIC_URL.trim()
@@ -202,42 +200,34 @@ setInterval(checkPublic, 30_000)
 setTimeout(checkPublic, 3_000)
 
 // ======================= API Keys Management =======================
+// Keys are stored only as SHA-256 hashes. The full key is shown once, at creation.
+const sha = v => crypto.createHash('sha256').update(String(v)).digest('hex')
+const LEAKED_DEFAULT_KEY_HASH = sha('3ced2f73b6e9c74f4e17c77018f4bde1ea11947af9d0c61e5d883fa9297091a0')
 let apiKeys = []
-function loadApiKeys() {
-  try {
-    apiKeys = JSON.parse(fs.readFileSync(APIKEYS_FILE, 'utf8'))
-  } catch {
-    // Generate default key if none exists
-    const defKey = '3ced2f73b6e9c74f4e17c77018f4bde1ea11947af9d0c61e5d883fa9297091a0'
-    apiKeys = [{
-      id: 'k_primary',
-      key: defKey,
-      label: 'Default App Key',
-      createdAt: Date.now(),
-      enabled: true,
-      dailyLimit: 0, // unlimited
-      usedToday: 0,
-      lastUsedDate: ''
-    }]
-    saveApiKeys()
-  }
-}
 function saveApiKeys() {
-  try { fs.writeFileSync(APIKEYS_FILE, JSON.stringify(apiKeys, null, 2)) } catch(e) { recordError('apikeys', e) }
+  try { fs.writeFileSync(APIKEYS_FILE, JSON.stringify(apiKeys, null, 2), { mode: 0o600 }) } catch(e) { recordError('apikeys', e) }
+}
+function loadApiKeys() {
+  let changed = false
+  try { apiKeys = JSON.parse(fs.readFileSync(APIKEYS_FILE, 'utf8')) } catch { apiKeys = [] }
+  for (const k of apiKeys) {
+    if (k.key) { k.keyHash = sha(k.key); k.keyPrefix = k.key.slice(0, 8); delete k.key; changed = true }
+  }
+  const before = apiKeys.length
+  apiKeys = apiKeys.filter(k => k.keyHash !== LEAKED_DEFAULT_KEY_HASH)
+  if (apiKeys.length !== before) { changed = true; console.log(col.y('Removed the old publicly-known default API key. Generate a new one in Admin > API Keys.')) }
+  if (changed) saveApiKeys()
 }
 loadApiKeys()
 
 function apiKeyAuth(req, res, next) {
-  const headerKey = req.headers['x-api-key'] || req.query.api_key
-  if (!headerKey) return res.status(401).json({ ok: false, error: 'Missing x-api-key header or api_key query param.' })
-  const found = apiKeys.find(k => k.key === headerKey && k.enabled)
+  const given = req.headers['x-api-key']
+  if (!given) return res.status(401).json({ ok: false, error: 'Missing x-api-key header.' })
+  const h = sha(given)
+  const found = apiKeys.find(k => k.enabled && safeEq(k.keyHash || '', h))
   if (!found) return res.status(403).json({ ok: false, error: 'Invalid or disabled API key.' })
-
   const today = new Date().toISOString().split('T')[0]
-  if (found.lastUsedDate !== today) {
-    found.usedToday = 0
-    found.lastUsedDate = today
-  }
+  if (found.lastUsedDate !== today) { found.usedToday = 0; found.lastUsedDate = today }
   if (found.dailyLimit > 0 && found.usedToday >= found.dailyLimit) {
     return res.status(429).json({ ok: false, error: `Daily limit of ${found.dailyLimit} reached for this API key.` })
   }
@@ -316,7 +306,7 @@ let botsConfig   = []
 try {
   botsConfig = JSON.parse(fs.readFileSync(BOTS_FILE, 'utf8'))
 } catch {
-  const defNumber = process.env.BOT_NUMBER ? normalize(process.env.BOT_NUMBER) : '923495031007'
+  const defNumber = process.env.BOT_NUMBER ? normalize(process.env.BOT_NUMBER) : ''
   botsConfig = [{ id: 'bot0', label: 'Main WhatsApp', enabled: true, botNumber: defNumber }]
   try { fs.writeFileSync(BOTS_FILE, JSON.stringify(botsConfig, null, 2)) } catch {}
 }
@@ -659,6 +649,10 @@ function sendText(jid, text, preferBotId) {
     try {
       if (!bot.ready) throw new Error(`Bot ${bot.label} is not ready`)
       try {
+        const chk = await bot.sock.onWhatsApp(jid)
+        if (Array.isArray(chk) && chk[0] && chk[0].exists === false) throw Object.assign(new Error('No WhatsApp account found for this number.'), { noWa: true })
+      } catch (e) { if (e.noWa) throw e }
+      try {
         await bot.sock.sendPresenceUpdate('composing', jid)
         await sleep(rand(800, 1800))
         await bot.sock.sendPresenceUpdate('paused', jid)
@@ -709,7 +703,11 @@ const ipHits  = new Map()
 const numHits = new Map()
 const lastMsg = new Map()
 
-const hash = val => crypto.createHash('sha256').update(String(val)).digest('hex')
+const SECRET_FILE = path.join(DATA_DIR, '.secret')
+let SECRET = ''
+try { SECRET = fs.readFileSync(SECRET_FILE, 'utf8').trim() } catch {}
+if (!SECRET) { SECRET = crypto.randomBytes(32).toString('hex'); try { fs.writeFileSync(SECRET_FILE, SECRET, { mode: 0o600 }) } catch {} }
+const otpHash = (n, o) => crypto.createHmac('sha256', SECRET).update(n + ':' + o).digest('hex')
 
 // ======================= Admin Session & Auth =======================
 const sessions   = new Map()
@@ -741,14 +739,21 @@ function adminAuth(req, res, next) {
 
 // ======================= Express HTTP App =======================
 const app = express()
-app.set('trust proxy', !!process.env.TRUST_PROXY)
+const TP = String(process.env.TRUST_PROXY || '')
+app.set('trust proxy', TP ? (/^\d+$/.test(TP) ? Number(TP) : TP === 'true' ? true : TP) : 'loopback')
 app.use(express.json({ limit: '2mb' }))
 app.use(express.urlencoded({ extended: true }))
 
-// Universal CORS Middleware
+// Security headers + CORS (open only for the server-to-server /api/v1 API)
+const CORS_ORIGINS = String(process.env.CORS_ORIGINS || '').split(',').map(x => x.trim()).filter(Boolean)
 app.use((req, res, next) => {
-  res.setHeader('Access-Control-Allow-Origin', '*')
-  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS')
+  res.setHeader('X-Content-Type-Options', 'nosniff')
+  res.setHeader('X-Frame-Options', 'SAMEORIGIN')
+  res.setHeader('Referrer-Policy', 'same-origin')
+  const origin = req.headers.origin
+  if (req.path.startsWith('/api/v1/')) res.setHeader('Access-Control-Allow-Origin', '*')
+  else if (origin && CORS_ORIGINS.includes(origin)) res.setHeader('Access-Control-Allow-Origin', origin)
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS')
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, x-api-key')
   if (req.method === 'OPTIONS') return res.sendStatus(204)
   next()
@@ -765,7 +770,8 @@ app.get('/api/status', (req, res) => res.json({ name: APP_NAME, ready: anyReady(
 async function handleSendOtp(req, res, isV1 = false) {
   checkDailyReset()
   const rawNumber = req.body?.number
-  const preferBotId = req.body?.botId || (isV1 && req.apiKey?.botId && req.apiKey.botId !== 'all' ? req.apiKey.botId : null)
+  const preferBotId = isV1 ? (req.body?.botId || (req.apiKey?.botId && req.apiKey.botId !== 'all' ? req.apiKey.botId : null)) : null
+  if (!isV1 && !CFG.signupEnabled) return res.status(403).json({ ok: false, error: 'Public verification page is disabled.' })
   if (!rawNumber) return res.status(400).json({ ok: false, error: 'Phone number is required.' })
 
   const number = normalize(rawNumber)
@@ -813,7 +819,7 @@ async function handleSendOtp(req, res, isV1 = false) {
   const text = CFG.message.replace(/\{OTP\}/g, otp).replace(/\{MINUTES\}/g, String(ttlMin))
   const jid = number + '@s.whatsapp.net'
 
-  otps.set(number, { hash: hash(otp), expires: now + CFG.otpTtlSec * 1000, attempts: 0 })
+  otps.set(number, { hash: otpHash(number, otp), expires: now + CFG.otpTtlSec * 1000, attempts: 0 })
   persistOtps()
   lastReq.set(number, now)
   globalStats.requested++
@@ -846,6 +852,7 @@ async function handleSendOtp(req, res, isV1 = false) {
     persistOtps()
     globalStats.failed++
     recordError('send-otp', err)
+    if (err.noWa) return res.status(404).json({ ok: false, error: err.message })
     res.status(500).json({ ok: false, error: 'Could not send WhatsApp OTP: ' + err.message })
   }
 }
@@ -870,7 +877,7 @@ function handleVerifyOtp(req, res) {
     persistOtps()
     return res.status(429).json({ ok: false, error: 'Too many incorrect attempts.' })
   }
-  if (hash(otp) !== record.hash) {
+  if (!safeEq(otpHash(number, otp), record.hash)) {
     persistOtps()
     return res.status(400).json({ ok: false, error: 'Invalid verification code.' })
   }
@@ -883,6 +890,11 @@ function handleVerifyOtp(req, res) {
 
 app.post('/api/verify-otp',         handleVerifyOtp)
 app.post('/api/v1/verify-otp', apiKeyAuth, handleVerifyOtp)
+app.get('/api/delivery', (req, res) => {
+  const id = lastMsg.get(normalize(req.query.number))
+  const r = id && sends.get(id)
+  res.json({ ok: true, status: r ? (STATUS[r.status] || 'pending') : 'unknown' })
+})
 app.get('/api/v1/status', apiKeyAuth, (req, res) => res.json({
   ok: true,
   name: APP_NAME,
@@ -959,7 +971,7 @@ app.get('/api/admin/state', adminAuth, (req, res) => {
       id: k.id,
       label: k.label,
       botId: k.botId || 'all',
-      key: k.key.slice(0, 8) + '...' + k.key.slice(-4),
+      key: (k.keyPrefix || '--------') + '........',
       dailyLimit: k.dailyLimit,
       usedToday: k.usedToday,
       enabled: k.enabled,
@@ -1111,7 +1123,7 @@ app.post('/api/admin/bots/:id/send', adminAuth, async (req, res) => {
 })
 
 // API Keys Endpoints
-app.get('/api/admin/keys', adminAuth, (req, res) => res.json({ ok: true, keys: apiKeys }))
+app.get('/api/admin/keys', adminAuth, (req, res) => res.json({ ok: true, keys: apiKeys.map(({ keyHash, ...k }) => k) }))
 app.post('/api/admin/keys/generate', adminAuth, (req, res) => {
   const label = String(req.body?.label || 'API Key').trim()
   const dailyLimit = Number(req.body?.dailyLimit) || 0
@@ -1119,7 +1131,8 @@ app.post('/api/admin/keys/generate', adminAuth, (req, res) => {
   const key = crypto.randomBytes(32).toString('hex')
   const newObj = {
     id: 'k_' + Date.now(),
-    key,
+    keyHash: sha(key),
+    keyPrefix: key.slice(0, 8),
     label,
     botId: botId || 'all',
     createdAt: Date.now(),
@@ -1130,7 +1143,8 @@ app.post('/api/admin/keys/generate', adminAuth, (req, res) => {
   }
   apiKeys.push(newObj)
   saveApiKeys()
-  res.json({ ok: true, key: newObj })
+  const { keyHash, ...pub } = newObj
+  res.json({ ok: true, key: { ...pub, key } })
 })
 app.post('/api/admin/keys/:id/toggle', adminAuth, (req, res) => {
   const k = apiKeys.find(x => x.id === req.params.id)
@@ -1180,6 +1194,17 @@ app.post('/api/admin/settings', adminAuth, (req, res) => {
   res.json({ ok: true })
 })
 
+// ======================= Periodic Memory Cleanup =======================
+setInterval(() => {
+  const n = Date.now()
+  for (const [k, t] of lastReq) if (n - t > 3600_000) lastReq.delete(k)
+  for (const m of [ipHits, numHits]) for (const [k, l] of m) { const f = l.filter(t => n - t < 3600_000); f.length ? m.set(k, f) : m.delete(k) }
+  while (lastMsg.size > 500) lastMsg.delete(lastMsg.keys().next().value)
+  for (const [k, v] of otps) if (v.expires < n) otps.delete(k)
+  for (const [t, e] of sessions) if (e < n) sessions.delete(t)
+  loginFails.splice(0, loginFails.length, ...loginFails.filter(f => n - f.t < 600_000))
+}, 600_000).unref()
+
 // ======================= Start HTTP Server =======================
 const server = http.createServer(app)
 server.listen(PORT, HOST, () => {
@@ -1187,8 +1212,7 @@ server.listen(PORT, HOST, () => {
   console.log(col.g(`\n${'═'.repeat(54)}`))
   console.log(col.b(`  🚀 ${APP_NAME} v${VERSION} Gateway Started`))
   console.log(col.c(`  Local Admin:   ${url}/admin.html`))
-  console.log(col.c(`  Demo Bank App: ${url}/app.html`))
-  console.log(col.c(`  Health Status: ${url}/health`))
+    console.log(col.c(`  Health Status: ${url}/health`))
   console.log(col.g(`${'═'.repeat(54)}\n`))
   initBots()
 })

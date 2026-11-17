@@ -336,10 +336,10 @@ function verify_otp(string $phone, string $otp): array {
 |---------|---------|-------------|
 | OTP Lifetime | 300s (5 min) | کتنے وقت تک code valid ہو |
 | Resend Cooldown | 60s | دوبارہ OTP کا انتظار |
-| Max / Hour | 30 | ایک گھنٹے میں کل OTPs |
-| Daily Limit | 500 | روزانہ کل OTPs |
-| Max per IP / Hour | 10 | ایک IP سے گھنٹے میں |
-| Warmup | 20s | نئے link کے بعد انتظار |
+| Max / Hour | 40 | ایک گھنٹے میں کل OTPs |
+| Daily Limit | 1000 | روزانہ کل OTPs |
+| Max per IP / Hour | 15 | ایک IP سے گھنٹے میں |
+| Warmup | 10s | نئے link کے بعد انتظار |
 
 ### WhatsApp Message Template
 
@@ -435,3 +435,13 @@ bash manage.sh pull
 ---
 
 *WhatsApp OTP Pro v2.0 | Unofficial WhatsApp library - Production میں official WhatsApp Cloud API بہتر ہے*
+
+---
+
+## Security Update (v2.1)
+
+- Default API key removed; generate your own in Admin > API Keys. Keys are stored hashed and shown only once.
+- Public `/api/send-otp` can be turned off with the `signupEnabled` setting; it never accepts `botId`.
+- `/api/v1` is the only CORS-open API; set `CORS_ORIGINS=https://site1.com,https://site2.com` for other origins.
+- OTPs are HMAC-hashed with a private `.secret` file. Numbers are checked with WhatsApp before sending.
+- Behind Cloudflare Tunnel the real visitor IP is now read automatically (`TRUST_PROXY` still overrides).

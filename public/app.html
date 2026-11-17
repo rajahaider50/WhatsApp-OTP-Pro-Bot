@@ -1447,7 +1447,7 @@ html, body {
     <div class="form-group">
       <label class="form-label">Live API Key (x-api-key)</label>
       <div class="input-wrap">
-        <input type="text" class="input-control" id="config-api-key" placeholder="3ced2f73b6e9c74f4e17c77018f4bde1ea11947af9d0c61e5d883fa9297091a0">
+        <input type="text" class="input-control" id="config-api-key" placeholder="Paste a key from Admin > API Keys">
       </div>
       <small style="color:var(--accent-wa); font-size:11px; margin-top:4px; display:block;">Pre-configured with your dedicated WhatsApp OTP key.</small>
     </div>
@@ -1499,7 +1499,7 @@ html, body {
 /* ==========================================================================
    CONFIG & STORAGE
    ========================================================================== */
-const DEFAULT_API_KEY = '3ced2f73b6e9c74f4e17c77018f4bde1ea11947af9d0c61e5d883fa9297091a0';
+const DEFAULT_API_KEY = '';
 
 let APP_STATE = {
   baseUrl: localStorage.getItem('finvault_base_url') || window.location.origin,
@@ -1829,7 +1829,7 @@ async function handleVerifyOtpSubmit() {
 
   try {
     await callVerifyOtpApi(phone, otpCode);
-    toast('WhatsApp Number Verified! ✓', 'success');
+    toast('WhatsApp Number Verified! ', 'success');
 
     if (APP_STATE.otpContext === 'signup') {
       // Save new user account
