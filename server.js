@@ -19,7 +19,7 @@ const __filename = fileURLToPath(import.meta.url)
 const __dirname  = path.dirname(__filename)
 
 const APP_NAME = 'OTP Bot Pro'
-const VERSION  = '2.1.0'
+const VERSION  = '2.2.0'
 
 // ======================= ANSI Colors =======================
 const col = {
@@ -648,24 +648,33 @@ function sendText(jid, text, preferBotId) {
   bot.chain = bot.chain.then(async () => {
     try {
       if (!bot.ready) throw new Error(`Bot ${bot.label} is not ready`)
+      // Resolve the real WhatsApp JID. An empty result or a 400 means the number is not a valid WhatsApp account.
+      let target = jid
+      const shown = jid.split('@')[0].replace(/^(\d{5})\d+(\d{2})$/, '$1*****$2')
       try {
         const chk = await bot.sock.onWhatsApp(jid)
-        if (Array.isArray(chk) && chk[0] && chk[0].exists === false) throw Object.assign(new Error('No WhatsApp account found for this number.'), { noWa: true })
-      } catch (e) { if (e.noWa) throw e }
+        const hit = Array.isArray(chk) ? chk[0] : null
+        if (!hit || hit.exists === false) throw Object.assign(new Error('No WhatsApp account found for this number.'), { noWa: true })
+        if (hit.jid) target = hit.jid
+      } catch (e) {
+        if (e.noWa) throw e
+        if (/bad-request|400/i.test(String(e.message))) throw Object.assign(new Error('This number is invalid or not registered on WhatsApp.'), { noWa: true })
+        warn(`Number lookup failed for ${shown} (${e.message}); sending anyway`)
+      }
       try {
-        await bot.sock.sendPresenceUpdate('composing', jid)
+        await bot.sock.sendPresenceUpdate('composing', target)
         await sleep(rand(800, 1800))
-        await bot.sock.sendPresenceUpdate('paused', jid)
+        await bot.sock.sendPresenceUpdate('paused', target)
       } catch {}
 
       let m
       try {
-        m = await bot.sock.sendMessage(jid, { text })
+        m = await bot.sock.sendMessage(target, { text })
       } catch(e) {
         warn(`Bot ${bot.id} message send retry:`, e.message)
         await sleep(2000)
         if (!bot.ready) throw e
-        m = await bot.sock.sendMessage(jid, { text })
+        m = await bot.sock.sendMessage(target, { text })
       }
 
       const id = m?.key?.id
@@ -674,6 +683,11 @@ function sendText(jid, text, preferBotId) {
       sends.set(id, { to: jid.split('@')[0], status: 1, at: Date.now(), botId: bot.id })
       while (sentCache.size > 500) sentCache.delete(sentCache.keys().next().value)
       while (sends.size > 500)     sends.delete(sends.keys().next().value)
+      // Wait for WhatsApp server acknowledgement so we never report "sent" for a message that was rejected
+      for (let i = 0; i < 20 && (sends.get(id)?.status || 1) < 2; i++) await sleep(500)
+      if ((sends.get(id)?.status || 1) < 2) {
+        throw new Error('WhatsApp did not accept the message (no server acknowledgement). Check that the number is valid and the bot account is healthy.')
+      }
       resolveId({ id, botId: bot.id })
     } catch(err) {
       rejectId(err)

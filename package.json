@@ -1,6 +1,6 @@
 {
   "name": "whatsapp-otp-pro",
-  "version": "2.1.0",
+  "version": "2.2.0",
   "description": "WhatsApp OTP Pro Gateway - Multi-bot, API Keys, Admin Panel",
   "type": "module",
   "main": "server.js",
